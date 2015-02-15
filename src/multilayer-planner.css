@@ -1,0 +1,43 @@
+.leaflet-control-farm-status a
+{
+	background-image: url(@@INCLUDEIMAGE:images/add.png@@);
+}
+.leaflet-control-farm-status a.active
+{
+	background-color: #BBB;
+}
+.leaflet-control-farm-status-tooltip
+{
+	background-color: rgba(255, 255, 255, 0.6);
+	display: none;
+	height: 44px;
+	left: 30px;
+	line-height: 15px;
+	margin-left: 15px;
+	margin-top: -12px;
+	padding: 4px 10px;
+	position: absolute;
+	top: 50%;
+	white-space: nowrap;
+	width: auto;
+}
+.leaflet-control-farm-status a.active .leaflet-control-farm-status-tooltip
+{
+	display: block;
+}
+.leaflet-control-farm-status a.finish .leaflet-control-farm-status-tooltip
+{
+	display: block;
+}
+.leaflet-control-farm-status-tooltip:before
+{
+	border-color: transparent rgba(255, 255, 255, 0.6);
+	border-style: solid;
+	border-width: 12px 12px 12px 0;
+	content: "";
+	display: block;
+	height: 0;
+	left: -12px;
+	position: absolute;
+	width: 0;
+}
