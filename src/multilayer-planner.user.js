@@ -1,6 +1,6 @@
 // ==UserScript==
 // @id             iitc-plugin-multilayer-planner@randomizax
-// @name           IITC plugin: Report multilayer planner
+// @name           IITC plugin: Multilayer planner
 // @category       Info
 // @version        0.1.0.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
@@ -20,7 +20,7 @@
 
 // use own namespace for plugin
 window.plugin.multilayerPlanner = {};
-window.plugin.multilayerPlanner.clicker = null;
+window.plugin.multilayerPlanner.overlayer = null;
 
 // Determine whether point c, p is on the same side of the line a-b.
 //  return positive if same
@@ -39,7 +39,8 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
   if (b.lng == 0 || b.lng == 180 || b.lng == -180) {
     // ab is completely on north/south line
     // console.log(["northen/southern ab: ", p.lng * c.lng]);
-    return Math.sign(p.lng * c.lng); // same side if they reside in the same hemisphere
+    // same side if they reside in the same east-west hemisphere
+    return Math.sign(p.lng * c.lng);
   }
 
   var d2r = L.LatLng.DEG_TO_RAD;
@@ -100,6 +101,24 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
 };
 
 
+// See if point p is a good candidate for a new layer
+//  that covers and shares two vertices with the triangle abc
+//  returns null if not possible
+//  returns [x,y] where xy is the common baseline
+window.plugin.multilayerPlanner.overlayerPossible = function (latlngs,p) {
+  var a = latlngs[0], b = latlngs[1], c = latlngs[2];
+  var abc = window.plugin.multilayerPlanner.sameSide(a,b,c,p);
+  var bca = window.plugin.multilayerPlanner.sameSide(b,c,a,p);
+  var cab = window.plugin.multilayerPlanner.sameSide(c,a,b,p);
+
+  if (abc == 0 || bca == 0 || cab == 0) return null; // some is online
+  if (abc > 0 && bca < 0 && cab < 0) return [a,b];
+  if (bca > 0 && cab < 0 && abc < 0) return [b,c];
+  if (cab > 0 && abc < 0 && bca < 0) return [c,a];
+  return null;
+};
+
+/*
 // Interpolate between a and b at ratio lngPos (0..1).
 window.plugin.multilayerPlanner.geodesicInterpolate = function (a, b, lngPos) {
   var R = 6378137; // earth radius in meters (doesn't have to be exact)
@@ -132,7 +151,7 @@ window.plugin.multilayerPlanner.geodesicInterpolate = function (a, b, lngPos) {
   var point = L.latLng ( [iLat*r2d, iLng*r2d] );
   return point;
 };
-
+*/
 
 // Detect if a point is inside polygon.
 /*
@@ -172,12 +191,12 @@ window.plugin.multilayerPlanner.pointInPolygon = function ( polygon, pt ) {
 };
 
 // Be sure to run after draw-tool is loaded.
-window.plugin.multilayerPlanner.defineClicker = function(L) {
-  if (L.Clicker) return;
+window.plugin.multilayerPlanner.defineOverlayer = function(L) {
+  if (L.Overlayer) return;
 
-  L.Clicker = L.Draw.Feature.extend({
+  L.Overlayer = L.Draw.Polyline.extend({
     statics: {
-      TYPE: 'clicker'
+      TYPE: 'overlayer'
     },
 
     options: {
@@ -185,30 +204,58 @@ window.plugin.multilayerPlanner.defineClicker = function(L) {
         iconSize: new L.Point(8, 8),
         className: 'leaflet-div-icon leaflet-editing-icon'
       }),
+      drawError: {
+        message: "Can't create non-crossing CF here"
+      },
+      guidelineDistance: 20,
+      shapeOptions: {
+	stroke: true,
+	color: '#f06eaa',
+	weight: 4,
+	opacity: 0.5,
+	fill: false,
+	clickable: true
+      },
+      snapPoint: window.plugin.drawTools.getSnapLatLng,
       repeatMode: true,
       metric: true, // Whether to use the metric measurement system or imperial
       zIndexOffset: 2000 // This should be > than the highest z-index any map layers
     },
 
     initialize: function (map, options) {
-      // Save the type so super can fire, need to do this as cannot do this.TYPE :(
-      this.type = L.Clicker.TYPE;
+      // Need to set this here to ensure the correct message is used.
+      this.options.drawError.message = L.drawLocal.draw.handlers.polyline.error;
 
-      L.Draw.Feature.prototype.initialize.call(this, map, options);
+      // Merge default drawError options with custom options
+      if (options && options.drawError) {
+	options.drawError = L.Util.extend({}, this.options.drawError, options.drawError);
+      }
+
+      // Save the type so super can fire, need to do this as cannot do this.TYPE :(
+      this.type = L.Overlayer.TYPE;
+
+      L.Draw.Polyline.prototype.initialize.call(this, map, options);
 
       this._base = null;
     },
 
     addHooks: function () {
-      L.Draw.Feature.prototype.addHooks.call(this);
+      L.Draw.Polyline.prototype.addHooks.call(this);
       if (this._map) {
         this._markers = [];
 
         this._markerGroup = new L.LayerGroup();
         this._map.addLayer(this._markerGroup);
 
+	this._poly = new L.GeodesicPolyline([], this.options.shapeOptions);
+
         this._tooltip.updateContent(this._getTooltipText());
 
+	// Make a transparent marker that will used to catch click events. These click
+	// events will create the vertices. We need to do this so we can ensure that
+	// we can create vertices over other map layers (markers, vector layers). We
+	// also do not want to trigger any click handlers of objects we are clicking on
+	// while drawing.
         if (!this._mouseMarker) {
 	  this._mouseMarker = L.marker(this._map.getCenter(), {
 	    icon: L.divIcon({
@@ -217,7 +264,7 @@ window.plugin.multilayerPlanner.defineClicker = function(L) {
 	      iconSize: [40, 40]
 	    }),
 	    opacity: 0,
-	    zIndexOffset: this.options.zIndexOffset
+	    zIndexOffset: this.options.zIndexOffset,
 	  });
         }
 
@@ -226,23 +273,17 @@ window.plugin.multilayerPlanner.defineClicker = function(L) {
 	  .addTo(this._map);
 
         this._map
-	  .on('mousemove', this._onMouseMove, this);
+	  .on('mousemove', this._onMouseMove, this)
+          .on('zoomend', this._onZoomEnd, this);
       }
-    },
-
-    removeHooks: function () {
-      L.Draw.Feature.prototype.removeHooks.call(this);
-
-      this._mouseMarker.off('click', this._onClick, this);
-      this._map.removeLayer(this._mouseMarker);
-      delete this._mouseMarker;
-
-      this._map
-        .off('mousemove', this._onMouseMove, this);
     },
 
     _finishShape: function () {
       this.disable();
+    },
+
+    _onZoomEnd: function () {
+      this._updateGuide();
     },
 
     _onMouseMove: function (e) {
@@ -254,6 +295,9 @@ window.plugin.multilayerPlanner.defineClicker = function(L) {
 
       this._updateTooltip(latlng);
 
+      // Update the guide line
+      this._updateGuide(latlng);
+
       // Update the mouse marker position
       this._mouseMarker.setLatLng(latlng);
 
@@ -261,33 +305,113 @@ window.plugin.multilayerPlanner.defineClicker = function(L) {
     },
 
     _onClick: function (e) {
-      var latlng = e.target.getLatLng();
+      var newPos = e.target.getLatLng();
 
-      // console.log(["Clicker._onClick", latlng]);
-      window.plugin.multilayerPlanner.pick(latlng);
+      if (this._base == null) {
+        if (this._errorShown) {
+	  this._hideErrorTooltip();
+	}
+
+        // pick first trigon
+        var candidates = [];
+        window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
+          if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
+            if (layer instanceof L.GeodesicPolygon ||
+                layer instanceof L.Polygon ||
+                layer instanceof L.GeodesicPolyline ||
+                layer instanceof L.Polyline) {
+              if (layer.getLatLngs().length == 3) {
+                candidates.push([Math.abs(window.plugin.multilayerPlanner.polygonInfo(layer).area), layer]);
+              }
+            }
+          }
+        });
+        if (candidates.length == 0) {
+          // console.log("nothing");
+        } else {
+          // find outermost (i.e. largest) polygon
+          candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
+          polygon = candidates[0][1];
+          this._base = polygon;
+        }
+      } else {
+        if (this.options.snapPoint) newPos = this.options.snapPoint(newPos);
+
+        if (this._errorShown) {
+	  this._hideErrorTooltip();
+	}
+
+        // create new layer
+        var latlngs = this._base.getLatLngs();
+        var ab = window.plugin.multilayerPlanner.overlayerPossible(latlngs, newPos);
+
+        if (ab == null) {
+          this._showErrorTooltip();
+        } else {
+          ab.push(newPos);
+          var layer = L.geodesicPolygon(ab, L.extend({},window.plugin.drawTools.polygonOptions));
+          window.plugin.drawTools.drawnItems.addLayer(layer);
+          this._base = layer;
+        }
+      }
+
+      this._clearGuides();
 
       this._updateTooltip();
     },
 
     _getTooltipText: function() {
       if (window.plugin.multilayerPlanner.base === null) {
-        return { text: 'Click on existing trigon' };
+        return { text: 'Click on an existing trigon' };
       } else {
+        return { text: 'Click on portal to add a layer' };
       }
     },
 
-    _updateTooltip: function (latLng) {
-      var text = this._getTooltipText();
+    _updateGuide: function (latlng) {
+      latlng = latlng || this._currentLatLng;
+      var newPos = this._map.latLngToLayerPoint(latlng);
 
-      if (latLng) {
-        this._tooltip.updatePosition(latLng);
-      }
+      // draw the guide line
+      this._clearGuides();
 
-      if (!this._errorShown) {
-        this._tooltip.updateContent(text);
+      // draw guides iff new overlayer is possible
+      if (this._base) {
+        var latlngs = this._base.getLatLngs();
+        var ab = window.plugin.multilayerPlanner.overlayerPossible(latlngs, latlng);
+        if (ab) {
+          this._drawGuide(this._map.latLngToLayerPoint(ab[0]), newPos);
+          this._drawGuide(this._map.latLngToLayerPoint(ab[1]), newPos);
+        }
       }
     },
 
+    _showErrorTooltip: function () {
+      this._errorShown = true;
+
+      // Update tooltip
+      this._tooltip
+	.showAsError()
+	.updateContent({ text: this.options.drawError.message });
+
+      // Hide the error after 2 seconds
+      this._clearHideErrorTimeout();
+      this._hideErrorTimeout = setTimeout(L.Util.bind(this._hideErrorTooltip, this), this.options.drawError.timeout);
+    },
+
+    _hideErrorTooltip: function () {
+      this._errorShown = false;
+
+      this._clearHideErrorTimeout();
+
+      // Revert tooltip
+      this._tooltip
+	.removeError()
+	.updateContent(this._getTooltipText());
+    },
+
+    _fireCreatedEvent: function () {},
+    _cleanUpShape: function () {}
   });
 };
 
@@ -311,66 +435,22 @@ window.plugin.multilayerPlanner.polygonInfo = function(polygon) {
   return { area: area, cog: new L.LatLng(glat, glng) };
 };
 
-// Pick a portal at the point.
-//  Or a portals enclosed in the (innermost) polygon at the point.
-window.plugin.multilayerPlanner.pick = function(point) {
-  var portalGuid = window.plugin.multilayerPlanner.portalOnPoint(point);
-
-  if (portalGuid) {
-    var portal = window.portals[portalGuid];
-    // console.log([portal.options.data.title, portal.getLatLng()]);
-    window.plugin.multilayerPlanner.farm.add(portalGuid, window.plugin.multilayerPlanner.Farm.CORE);
-  } else {
-    var candidates = [];
-    window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
-      if ( window.plugin.multilayerPlanner.pointInPolygon( layer, point ) ) {
-        if (layer instanceof L.GeodesicCircle ||
-            layer instanceof L.Circle ||
-            layer instanceof L.GeodesicPolygon ||
-            layer instanceof L.Polygon ||
-            layer instanceof L.GeodesicPolyline ||
-            layer instanceof L.Polyline) {
-          candidates.push([Math.abs(window.plugin.multilayerPlanner.polygonInfo(layer).area), layer]);
-        }
-      }
-    });
-    if (candidates.length == 0) {
-      // console.log("nothing");
-    } else {
-      // find innermost (i.e. smallest) polygon
-      candidates = candidates.sort(function(a, b) { return a[0]-b[0]; });
-      polygon = candidates[0][1];
-      $.each(window.portals, function(i, portal) {
-        if (window.plugin.multilayerPlanner.pointInPolygon( polygon, portal.getLatLng() )) {
-          // console.log([portal.options.data.title, portal.getLatLng()]);
-          window.plugin.multilayerPlanner.farm.add(portal.options.guid, window.plugin.multilayerPlanner.farm.CORE);
-        }
-      });
-    }
-  }
-  window.plugin.multilayerPlanner.updateStats();
-};
-
-window.plugin.multilayerPlanner.updateStats = function() {
-  window.plugin.multilayerPlanner.tooltip.innerHTML = window.plugin.multilayerPlanner.farm.count();
-};
-
 window.plugin.multilayerPlanner.onBtnClick = function(ev) {
   var btn = window.plugin.multilayerPlanner.button,
   tooltip = window.plugin.multilayerPlanner.tooltip,
   layer = window.plugin.multilayerPlanner.layer;
 
   if (btn.classList.contains("active")) {
-    window.plugin.multilayerPlanner.clicker.disable();
+    window.plugin.multilayerPlanner.overlayer.disable();
     btn.classList.remove("active");
   } else {
-    window.plugin.multilayerPlanner.farm = new window.plugin.multilayerPlanner.Farm();
-    window.plugin.multilayerPlanner.clicker.enable();
+    window.plugin.multilayerPlanner.overlayer = new L.Overlayer(map, {});
+    window.plugin.multilayerPlanner.overlayer.enable();
     btn.classList.add("active");
-    window.plugin.multilayerPlanner.updateStats();
   }
 };
 
+/*
 window.plugin.multilayerPlanner.onTipClick = function(ev) {
   dialog({
     html: $('<div id="multilayerPlanner">' + window.plugin.multilayerPlanner.farm.count() + "</div>"),
@@ -380,12 +460,12 @@ window.plugin.multilayerPlanner.onTipClick = function(ev) {
     width: 300
   });
 };
+*/
 
 var setup = function() {
   $('<style>').prop('type', 'text/css').html('@@INCLUDESTRING:src/multilayer-planner.css@@').appendTo('head');
 
-  window.plugin.multilayerPlanner.defineClicker(L);
-  window.plugin.multilayerPlanner.clicker = new L.Clicker(map, {});
+  window.plugin.multilayerPlanner.defineOverlayer(L);
 
   var parent = $(".leaflet-top.leaflet-left", window.map.getContainer());
 
@@ -396,7 +476,7 @@ var setup = function() {
 
   var tooltip = document.createElement("div");
   tooltip.className = "leaflet-control-multilayer-planner-tooltip";
-  tooltip.addEventListener("click", window.plugin.multilayerPlanner.onTipClick, false);
+  // tooltip.addEventListener("click", window.plugin.multilayerPlanner.onTipClick, false);
   button.appendChild(tooltip);
 
   var container = document.createElement("div");
