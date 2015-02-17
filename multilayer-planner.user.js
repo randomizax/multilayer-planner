@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.0.20150216.172943
+// @version        0.1.1.20150217.161518
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2015-02-16-172943] Draw layered triangles.
+// @description    [randomizax-2015-02-17-161518] Draw layered triangles.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20150216.172943';
+// plugin_info.dateTimeVersion = '20150217.161518';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -48,6 +48,9 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
 
   // console.log(["rotated about z axis: a, b, c, p = ", a, b, c, p]);
 
+  var R = 6378137;
+  var d2r = L.LatLng.DEG_TO_RAD;
+
   if (b.lng == 0 || b.lng == 180 || b.lng == -180) {
     // ab is completely on north/south line
     // console.log(["northen/southern ab: ", p.lng * c.lng]);
@@ -55,7 +58,6 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
     return Math.sign(p.lng * c.lng);
   }
 
-  var d2r = L.LatLng.DEG_TO_RAD;
   var latlng2cartesian = function (p) {
     return [Math.cos(p.lng * d2r) * Math.cos(p.lat * d2r),
             Math.sin(p.lng * d2r) * Math.cos(p.lat * d2r),
@@ -72,7 +74,6 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
   // console.log(["Cartesian c: latlng, cart: ", c, c3]);
   // console.log(["Cartesian p: latlng, cart: ", p, p3]);
 
-  var R = 6378137;
   var ab = a.distanceTo(b) / R; // in radians
   // console.log(["distance ab = " + a.distanceTo(b), "ab = " + ab]);
   var sinZab = Math.cos(b.lat * d2r) * Math.sin(b.lng * d2r) / Math.sin(ab);
@@ -292,6 +293,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 
     _finishShape: function () {
       this.disable();
+      this._base = null;
     },
 
     _onZoomEnd: function () {
@@ -373,8 +375,8 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
     },
 
     _getTooltipText: function() {
-      if (window.plugin.multilayerPlanner.base === null) {
-        return { text: 'Click on an existing trigon' };
+      if (this._base === null) {
+        return { text: 'Click on an existing field' };
       } else {
         return { text: 'Click on portal to add a layer' };
       }
@@ -475,7 +477,7 @@ window.plugin.multilayerPlanner.onTipClick = function(ev) {
 */
 
 var setup = function() {
-  $('<style>').prop('type', 'text/css').html('.leaflet-control-farm-status a\n{\n	background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAABhElEQVRYw+2XzW3CUAzHf0HcywiMEEboxeeyQTtBR2gzQcsEZQM4+0I7QbMBYYNskF78pNeQl7ykPHEoliIZy/Hn33aAG/13ylIZFpFfv1W1U2+WyHkDNDG6s9SZD9F8wNgCeACWJqqAvarWyTEgIjmw85zjBbFW1bIn82bIvsPErCdz57wGCntqk+1Mp93zdu9D8nAFLJNH4MNEK8BlmwPfxj8B21bGvaSqWSwG/LKXAX7Zk8hZC0JjOI8IPHf9Nlw4uusyfKkp8FF+EJGN8c+e/HSJKQgFsAXejF8ALwGdoZ5PXkQO+SEqWlU6A3cX4KL3gPVxYYjv2gMroFZVROTVWrMHClWt/ryIPCDlwMGCcZW596bBH1e/NdGBZBE73W1EgPWA89GBZBMPy5DzNh6mHaOuF0VkjPPLnmOryBjnZYrvge0I3TpFAEWMYaOvFAFUwOYqFfBA+R5ZhSQYcJltInSqyYsocj8cbVV/mrOT8aVfob49MPl/Qczdj7mGN7o6/QBHl4lmP2K56wAAAABJRU5ErkJggg==);\n}\n.leaflet-control-farm-status a.active\n{\n	background-color: #BBB;\n}\n.leaflet-control-farm-status-tooltip\n{\n	background-color: rgba(255, 255, 255, 0.6);\n	display: none;\n	height: 44px;\n	left: 30px;\n	line-height: 15px;\n	margin-left: 15px;\n	margin-top: -12px;\n	padding: 4px 10px;\n	position: absolute;\n	top: 50%;\n	white-space: nowrap;\n	width: auto;\n}\n.leaflet-control-farm-status a.active .leaflet-control-farm-status-tooltip\n{\n	display: block;\n}\n.leaflet-control-farm-status a.finish .leaflet-control-farm-status-tooltip\n{\n	display: block;\n}\n.leaflet-control-farm-status-tooltip:before\n{\n	border-color: transparent rgba(255, 255, 255, 0.6);\n	border-style: solid;\n	border-width: 12px 12px 12px 0;\n	content: "";\n	display: block;\n	height: 0;\n	left: -12px;\n	position: absolute;\n	width: 0;\n}\n').appendTo('head');
+  $('<style>').prop('type', 'text/css').html('.leaflet-control-multilayer-planner a\n{\n	background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAACAklEQVRYw+3Xu2tUQRQG8N9uIiiIhdqIBJFALDVg8AEWNqewslBirRYWgqA2NoJIxH9CLSwEwXc3jcZHobHRQhs1Cj66iGBhEV0L78Lluo97726wMF+1Mzsz35zzfefsLMv439FYqoMjov2xBSmljlzNJSbvi+YAJKsiYnoQchitE0lKCY5jKiJmMZZSmsstaXU4q5Xb3+jrgT6RrMMr7MQmXMIWLHa7QNF7WRCdJSiRxkUcSynNp5Qe4AsOFczdKATYae7vDFTVMMMOrMDjDt+1ilGX9kAXbMSnwtzTfps6kZe+QHtzREziNsbbeucPjohmFnGrbK8ZrVjXFzGTM1sRV3EDN4dShgWsxkdczs2N421ufB3ncAutbmmv24i+40gu+mm8iYijuTV38RUTZci76lOiEvbgYW58GFd6mW2QDKzEHNZm460FcpksB9qXr1LKZTrh6azOD2IM73p4Zz/uYA1O4Hy/jDT6uL+J51mXW8B8ZsZe2ItZvMSpP6qkehKklH5hKmu1r0uQw33swgWcHYYHRrMsrK/grSf4gJO1+0BEnMnq+homarTsR9hWtwwncQ8vsG+Ax1FbwoWU0vsqEsxkKRyEvH3+syyLlTzwGbuH9EQcwfaI2FxKgogYwYYKKf5Rcu3PlNK3oTzLqz5aevWB2v8Lylyi6u/CMv4JfgMCF49kRK1Z6AAAAABJRU5ErkJggg==);\n}\n.leaflet-control-multilayer-planner a.active\n{\n	background-color: #BBB;\n}\n.leaflet-control-multilayer-planner-tooltip\n{\n	background-color: rgba(255, 255, 255, 0.6);\n	display: none;\n	height: 44px;\n	left: 30px;\n	line-height: 15px;\n	margin-left: 15px;\n	margin-top: -12px;\n	padding: 4px 10px;\n	position: absolute;\n	top: 50%;\n	white-space: nowrap;\n	width: auto;\n}\n.leaflet-control-multilayer-planner a.active .leaflet-control-multilayer-planner-tooltip\n{\n	display: block;\n}\n.leaflet-control-multilayer-planner a.finish .leaflet-control-multilayer-planner-tooltip\n{\n	display: block;\n}\n.leaflet-control-multilayer-planner-tooltip:before\n{\n	border-color: transparent rgba(255, 255, 255, 0.6);\n	border-style: solid;\n	border-width: 12px 12px 12px 0;\n	content: "";\n	display: block;\n	height: 0;\n	left: -12px;\n	position: absolute;\n	width: 0;\n}\n').appendTo('head');
 
   window.plugin.multilayerPlanner.defineOverlayer(L);
 
@@ -484,7 +486,7 @@ var setup = function() {
   var button = document.createElement("a");
   button.className = "leaflet-bar-part";
   button.addEventListener("click", window.plugin.multilayerPlanner.onBtnClick, false);
-  button.title = 'Count portal levels in polygons';
+  button.title = 'Plan multilayer fields';
 
   var tooltip = document.createElement("div");
   tooltip.className = "leaflet-control-multilayer-planner-tooltip";

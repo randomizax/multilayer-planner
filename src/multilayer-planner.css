@@ -1,12 +1,12 @@
-.leaflet-control-farm-status a
+.leaflet-control-multilayer-planner a
 {
 	background-image: url(@@INCLUDEIMAGE:images/add.png@@);
 }
-.leaflet-control-farm-status a.active
+.leaflet-control-multilayer-planner a.active
 {
 	background-color: #BBB;
 }
-.leaflet-control-farm-status-tooltip
+.leaflet-control-multilayer-planner-tooltip
 {
 	background-color: rgba(255, 255, 255, 0.6);
 	display: none;
@@ -21,15 +21,15 @@
 	white-space: nowrap;
 	width: auto;
 }
-.leaflet-control-farm-status a.active .leaflet-control-farm-status-tooltip
+.leaflet-control-multilayer-planner a.active .leaflet-control-multilayer-planner-tooltip
 {
 	display: block;
 }
-.leaflet-control-farm-status a.finish .leaflet-control-farm-status-tooltip
+.leaflet-control-multilayer-planner a.finish .leaflet-control-multilayer-planner-tooltip
 {
 	display: block;
 }
-.leaflet-control-farm-status-tooltip:before
+.leaflet-control-multilayer-planner-tooltip:before
 {
 	border-color: transparent rgba(255, 255, 255, 0.6);
 	border-style: solid;

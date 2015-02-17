@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.0.@@DATETIMEVERSION@@
+// @version        0.1.1.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -36,6 +36,9 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
 
   // console.log(["rotated about z axis: a, b, c, p = ", a, b, c, p]);
 
+  var R = 6378137;
+  var d2r = L.LatLng.DEG_TO_RAD;
+
   if (b.lng == 0 || b.lng == 180 || b.lng == -180) {
     // ab is completely on north/south line
     // console.log(["northen/southern ab: ", p.lng * c.lng]);
@@ -43,7 +46,6 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
     return Math.sign(p.lng * c.lng);
   }
 
-  var d2r = L.LatLng.DEG_TO_RAD;
   var latlng2cartesian = function (p) {
     return [Math.cos(p.lng * d2r) * Math.cos(p.lat * d2r),
             Math.sin(p.lng * d2r) * Math.cos(p.lat * d2r),
@@ -60,7 +62,6 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
   // console.log(["Cartesian c: latlng, cart: ", c, c3]);
   // console.log(["Cartesian p: latlng, cart: ", p, p3]);
 
-  var R = 6378137;
   var ab = a.distanceTo(b) / R; // in radians
   // console.log(["distance ab = " + a.distanceTo(b), "ab = " + ab]);
   var sinZab = Math.cos(b.lat * d2r) * Math.sin(b.lng * d2r) / Math.sin(ab);
@@ -280,6 +281,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 
     _finishShape: function () {
       this.disable();
+      this._base = null;
     },
 
     _onZoomEnd: function () {
@@ -361,8 +363,8 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
     },
 
     _getTooltipText: function() {
-      if (window.plugin.multilayerPlanner.base === null) {
-        return { text: 'Click on an existing trigon' };
+      if (this._base === null) {
+        return { text: 'Click on an existing field' };
       } else {
         return { text: 'Click on portal to add a layer' };
       }
@@ -472,7 +474,7 @@ var setup = function() {
   var button = document.createElement("a");
   button.className = "leaflet-bar-part";
   button.addEventListener("click", window.plugin.multilayerPlanner.onBtnClick, false);
-  button.title = 'Count portal levels in polygons';
+  button.title = 'Plan multilayer fields';
 
   var tooltip = document.createElement("div");
   tooltip.className = "leaflet-control-multilayer-planner-tooltip";
