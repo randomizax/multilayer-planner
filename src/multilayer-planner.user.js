@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.1.@@DATETIMEVERSION@@
+// @version        0.1.2.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -197,7 +197,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 
   L.Overlayer = L.Draw.Polyline.extend({
     statics: {
-      TYPE: 'overlayer'
+      TYPE: 'polygon' // we create polygons
     },
 
     options: {
@@ -352,7 +352,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
         } else {
           ab.push(newPos);
           var layer = L.geodesicPolygon(ab, L.extend({},window.plugin.drawTools.polygonOptions));
-          window.plugin.drawTools.drawnItems.addLayer(layer);
+          this._fireCreatedEvent(layer);
           this._base = layer;
         }
       }
@@ -412,7 +412,10 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 	.updateContent(this._getTooltipText());
     },
 
-    _fireCreatedEvent: function () {},
+    _fireCreatedEvent: function (layer) {
+      L.Draw.Feature.prototype._fireCreatedEvent.call(this, layer);
+    },
+
     _cleanUpShape: function () {}
   });
 };

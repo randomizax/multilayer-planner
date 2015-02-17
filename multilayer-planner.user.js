@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.1.20150217.161518
+// @version        0.1.2.20150217.163821
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2015-02-17-161518] Draw layered triangles.
+// @description    [randomizax-2015-02-17-163821] Draw layered triangles.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20150217.161518';
+// plugin_info.dateTimeVersion = '20150217.163821';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -209,7 +209,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 
   L.Overlayer = L.Draw.Polyline.extend({
     statics: {
-      TYPE: 'overlayer'
+      TYPE: 'polygon' // we create polygons
     },
 
     options: {
@@ -364,7 +364,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
         } else {
           ab.push(newPos);
           var layer = L.geodesicPolygon(ab, L.extend({},window.plugin.drawTools.polygonOptions));
-          window.plugin.drawTools.drawnItems.addLayer(layer);
+          this._fireCreatedEvent(layer);
           this._base = layer;
         }
       }
@@ -424,7 +424,10 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 	.updateContent(this._getTooltipText());
     },
 
-    _fireCreatedEvent: function () {},
+    _fireCreatedEvent: function (layer) {
+      L.Draw.Feature.prototype._fireCreatedEvent.call(this, layer);
+    },
+
     _cleanUpShape: function () {}
   });
 };
