@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.2.20150217.163821
+// @version        0.1.3.20150222.111909
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2015-02-17-163821] Draw layered triangles.
+// @description    [randomizax-2015-02-22-111909] Draw layered triangles.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20150217.163821';
+// plugin_info.dateTimeVersion = '20150222.111909';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -461,8 +461,12 @@ window.plugin.multilayerPlanner.onBtnClick = function(ev) {
     window.plugin.multilayerPlanner.overlayer.disable();
     btn.classList.remove("active");
   } else {
-    window.plugin.multilayerPlanner.overlayer = new L.Overlayer(map, {});
-    window.plugin.multilayerPlanner.overlayer.enable();
+    layer = window.plugin.multilayerPlanner.overlayer = new L.Overlayer(map, {});
+    layer.on('disabled', function() {
+      console.log("on disabled event");
+      btn.classList.remove("active");
+    });
+    layer.enable();
     btn.classList.add("active");
   }
 };

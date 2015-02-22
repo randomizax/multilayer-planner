@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.2.@@DATETIMEVERSION@@
+// @version        0.1.3.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -449,8 +449,12 @@ window.plugin.multilayerPlanner.onBtnClick = function(ev) {
     window.plugin.multilayerPlanner.overlayer.disable();
     btn.classList.remove("active");
   } else {
-    window.plugin.multilayerPlanner.overlayer = new L.Overlayer(map, {});
-    window.plugin.multilayerPlanner.overlayer.enable();
+    layer = window.plugin.multilayerPlanner.overlayer = new L.Overlayer(map, {});
+    layer.on('disabled', function() {
+      console.log("on disabled event");
+      btn.classList.remove("active");
+    });
+    layer.enable();
     btn.classList.add("active");
   }
 };
