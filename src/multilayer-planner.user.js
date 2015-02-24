@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.3.@@DATETIMEVERSION@@
+// @version        0.1.4.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
-// @description    [@@BUILDNAME@@-@@BUILDDATE@@] Draw layered triangles.
+// @description    [@@BUILDNAME@@-@@BUILDDATE@@] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -224,14 +224,6 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
     },
 
     initialize: function (map, options) {
-      // Need to set this here to ensure the correct message is used.
-      this.options.drawError.message = L.drawLocal.draw.handlers.polyline.error;
-
-      // Merge default drawError options with custom options
-      if (options && options.drawError) {
-	options.drawError = L.Util.extend({}, this.options.drawError, options.drawError);
-      }
-
       // Save the type so super can fire, need to do this as cannot do this.TYPE :(
       this.type = L.Overlayer.TYPE;
 
@@ -308,33 +300,75 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 
     _onClick: function (e) {
       var newPos = e.target.getLatLng();
+      if (this.options.snapPoint) newPos = this.options.snapPoint(newPos);
 
       if (this._base == null) {
         if (this._errorShown) {
 	  this._hideErrorTooltip();
 	}
 
-        // pick first trigon
-        var candidates = [];
-        window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
-          if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
-            if (layer instanceof L.GeodesicPolygon ||
-                layer instanceof L.Polygon ||
-                layer instanceof L.GeodesicPolyline ||
-                layer instanceof L.Polyline) {
-              if (layer.getLatLngs().length == 3) {
-                candidates.push([Math.abs(window.plugin.multilayerPlanner.polygonInfo(layer).area), layer]);
+        if (this._markers.length == 0) {
+
+          // Try picking an existing trigon
+          var candidates = [];
+          window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
+            if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
+              if (layer instanceof L.GeodesicPolygon ||
+                  layer instanceof L.Polygon ||
+                  layer instanceof L.GeodesicPolyline ||
+                  layer instanceof L.Polyline) {
+                if (layer.getLatLngs().length == 3) {
+                  candidates.push([Math.abs(window.plugin.multilayerPlanner.polygonInfo(layer).area), layer]);
+                }
               }
             }
+          });
+          if (candidates.length > 0) {
+            // find outermost (i.e. largest) polygon
+            candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
+            polygon = candidates[0][1];
+            this._base = polygon;
           }
-        });
-        if (candidates.length == 0) {
+        }
+        if (this._base == null) {
+          // if we already have that point, ignore
+          var markerCount = this._markers.length;
+          var found = false;
+          if (markerCount >= 1) {
+            var m0 = this._markers[0].getLatLng();
+            if (m0.lat == newPos.lat && m0.lng == newPos.lng) found = true;
+          }
+          if (markerCount >= 2) {
+            var m1 = this._markers[1].getLatLng();
+            if (m1.lat == newPos.lat && m1.lng == newPos.lng) found = true;
+          }
+
+          if (found) {
+            // ignore
+          } else {
+            if (markerCount == 2) {
+              // this completes a base CF
+              var latlngs = [this._markers[0].getLatLng(),
+                             this._markers[1].getLatLng(),
+                             newPos];
+              var layer = L.geodesicPolygon(latlngs, L.extend({},window.plugin.drawTools.polygonOptions));
+              this._fireCreatedEvent(layer);
+              this._base = layer;
+
+              // remove markers from map
+	      this._map.removeLayer(this._markerGroup);
+	      delete this._markerGroup;
+	      delete this._markers;
+
+              // add (dummy) empty layer to make removeHooks happy
+              this._markers = [];
+              this._markerGroup = new L.LayerGroup();
+              this._map.addLayer(this._markerGroup);
+            } else {
+              this._markers.push(this._createMarker(newPos));
+            }
+          }
           // console.log("nothing");
-        } else {
-          // find outermost (i.e. largest) polygon
-          candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
-          polygon = candidates[0][1];
-          this._base = polygon;
         }
       } else {
         if (this.options.snapPoint) newPos = this.options.snapPoint(newPos);
@@ -364,7 +398,15 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 
     _getTooltipText: function() {
       if (this._base === null) {
-        return { text: 'Click on an existing field' };
+        if (this._markers.length == 0) {
+          return { text: 'Click on an existing field or choose three portals' };
+        } else if (this._markers.length == 1) {
+          return { text: 'Click on the second portal' };
+        } else if (this._markers.length == 2) {
+          return { text: 'Click on the third portal' };
+        } else {
+          return { text: 'Whoa there...' };
+        }
       } else {
         return { text: 'Click on portal to add a layer' };
       }
@@ -384,6 +426,17 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
         if (ab) {
           this._drawGuide(this._map.latLngToLayerPoint(ab[0]), newPos);
           this._drawGuide(this._map.latLngToLayerPoint(ab[1]), newPos);
+        }
+      } else {
+        if (this._markers) {
+          if (this._markers[0]) {
+            this._drawGuide(this._map.latLngToLayerPoint(this._markers[0].getLatLng()), newPos);
+          }
+          if (this._markers[1]) {
+            this._drawGuide(this._map.latLngToLayerPoint(this._markers[0].getLatLng()),
+                            this._map.latLngToLayerPoint(this._markers[1].getLatLng()));
+            this._drawGuide(this._map.latLngToLayerPoint(this._markers[1].getLatLng()), newPos);
+          }
         }
       }
     },
