@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.4.@@DATETIMEVERSION@@
+// @version        0.1.5.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -312,12 +312,12 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
           // Try picking an existing trigon
           var candidates = [];
           window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
-            if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
-              if (layer instanceof L.GeodesicPolygon ||
-                  layer instanceof L.Polygon ||
-                  layer instanceof L.GeodesicPolyline ||
-                  layer instanceof L.Polyline) {
-                if (layer.getLatLngs().length == 3) {
+            if (layer instanceof L.GeodesicPolygon ||
+                layer instanceof L.Polygon ||
+                layer instanceof L.GeodesicPolyline ||
+                layer instanceof L.Polyline) {
+              if (layer.getLatLngs().length == 3) {
+                if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
                   candidates.push([Math.abs(window.plugin.multilayerPlanner.polygonInfo(layer).area), layer]);
                 }
               }

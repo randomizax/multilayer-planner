@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.4.20150224.103735
+// @version        0.1.5.20150224.110427
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2015-02-24-103735] Draw layered CF plans.
+// @description    [randomizax-2015-02-24-110427] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20150224.103735';
+// plugin_info.dateTimeVersion = '20150224.110427';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -324,12 +324,12 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
           // Try picking an existing trigon
           var candidates = [];
           window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
-            if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
-              if (layer instanceof L.GeodesicPolygon ||
-                  layer instanceof L.Polygon ||
-                  layer instanceof L.GeodesicPolyline ||
-                  layer instanceof L.Polyline) {
-                if (layer.getLatLngs().length == 3) {
+            if (layer instanceof L.GeodesicPolygon ||
+                layer instanceof L.Polygon ||
+                layer instanceof L.GeodesicPolyline ||
+                layer instanceof L.Polyline) {
+              if (layer.getLatLngs().length == 3) {
+                if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
                   candidates.push([Math.abs(window.plugin.multilayerPlanner.polygonInfo(layer).area), layer]);
                 }
               }
