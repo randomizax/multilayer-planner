@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.7.@@DATETIMEVERSION@@
+// @version        0.1.8.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -421,7 +421,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
     _getTooltipText: function() {
       if (this._base === null) {
         if (this._markers.length == 0) {
-          return { text: 'Click on an existing trigon or choose three portals' };
+          return { text: 'Click on an existing drawn trigon or choose three portals' };
         } else if (this._markers.length == 1) {
           return { text: 'Click on the second portal' };
         } else if (this._markers.length == 2) {
@@ -430,7 +430,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
           return { text: 'Whoa there...' };
         }
       } else {
-        return { text: 'Click on portal to add a layer' };
+        return { text: 'Click on a portal to add a layer' };
       }
     },
 

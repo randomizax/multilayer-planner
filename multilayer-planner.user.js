@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.7.20150404.53611
+// @version        0.1.8.20150404.55724
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2015-04-04-053611] Draw layered CF plans.
+// @description    [randomizax-2015-04-04-055724] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20150404.53611';
+// plugin_info.dateTimeVersion = '20150404.55724';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -433,7 +433,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
     _getTooltipText: function() {
       if (this._base === null) {
         if (this._markers.length == 0) {
-          return { text: 'Click on an existing trigon or choose three portals' };
+          return { text: 'Click on an existing drawn trigon or choose three portals' };
         } else if (this._markers.length == 1) {
           return { text: 'Click on the second portal' };
         } else if (this._markers.length == 2) {
@@ -442,7 +442,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
           return { text: 'Whoa there...' };
         }
       } else {
-        return { text: 'Click on portal to add a layer' };
+        return { text: 'Click on a portal to add a layer' };
       }
     },
 
