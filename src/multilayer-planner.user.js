@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.5.@@DATETIMEVERSION@@
+// @version        0.1.7.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -27,21 +27,22 @@ window.plugin.multilayerPlanner.overlayer = null;
 //  return negative if opposite
 //  return zero if either p or c is exactly on a-b
 
-window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
+window.plugin.multilayerPlanner.sameSide = function (a, b, c, p, debug) {
+  if (debug) console.log(["sameSide start args: a, b, c, p = ", a, b, c, p]);
+
   // normalize point b and p around a
   b = L.latLng(b.lat, b.lng - a.lng).wrap();
   p = L.latLng(p.lat, p.lng - a.lng).wrap();
   c = L.latLng(c.lat, c.lng - a.lng).wrap();
   a = L.latLng(a.lat, 0);
 
-  // console.log(["rotated about z axis: a, b, c, p = ", a, b, c, p]);
+  if (debug) console.log(["rotated about z axis: a, b, c, p = ", a, b, c, p]);
 
-  var R = 6378137;
   var d2r = L.LatLng.DEG_TO_RAD;
 
   if (b.lng == 0 || b.lng == 180 || b.lng == -180) {
     // ab is completely on north/south line
-    // console.log(["northen/southern ab: ", p.lng * c.lng]);
+    if (debug) console.log(["northen/southern ab: ", p.lng * c.lng]);
     // same side if they reside in the same east-west hemisphere
     return Math.sign(p.lng * c.lng);
   }
@@ -52,20 +53,15 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
             Math.sin(p.lat * d2r)];
   };
 
-  // var a3 = latlng2cartesian(a);
+  var a3 = latlng2cartesian(a);
   var b3 = latlng2cartesian(b);
   var c3 = latlng2cartesian(c);
   var p3 = latlng2cartesian(p);
 
-  // console.log(["Cartesian a: latlng, cart: ", a, a3]);
-  // console.log(["Cartesian b: latlng, cart: ", b, b3]);
-  // console.log(["Cartesian c: latlng, cart: ", c, c3]);
-  // console.log(["Cartesian p: latlng, cart: ", p, p3]);
-
-  var ab = a.distanceTo(b) / R; // in radians
-  // console.log(["distance ab = " + a.distanceTo(b), "ab = " + ab]);
-  var sinZab = Math.cos(b.lat * d2r) * Math.sin(b.lng * d2r) / Math.sin(ab);
-  var cosZab = Math.sqrt(1 - sinZab * sinZab);
+  if (debug) console.log(["Cartesian a: latlng, cart: ", a, a3]);
+  if (debug) console.log(["Cartesian b: latlng, cart: ", b, b3]);
+  if (debug) console.log(["Cartesian c: latlng, cart: ", c, c3]);
+  if (debug) console.log(["Cartesian p: latlng, cart: ", p, p3]);
 
   // Rotate globe so that a->b maps to 0,0 towards north.
   // rotate b, c, p around y axis for a.lat (degrees) ccw
@@ -74,31 +70,36 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p) {
 
   // rotate b, c, p around y axis for a.lat (degrees) ccw
   var sinA = Math.sin(- a.lat * d2r), cosA = Math.cos(- a.lat * d2r);
-  // console.log(["a.lat = " + a.lat, "sinA = " + sinA, "cosA = " + cosA]);
+  if (debug) console.log(["a.lat = " + a.lat, "sinA = " + sinA, "cosA = " + cosA]);
   var roty = function(p) {
     return [cosA * p[0] - sinA * p[2],
             p[1],
             sinA * p[0] + cosA * p[2]];
   };
-  // var a3r = roty(a3);
-  // console.log(["A rotated y axis by a.lng. a3r should == [1,0,0]: a3r: ", a3r]);
+  var a3r = roty(a3);
+  if (debug) console.log(["A rotated y axis by a.lng. a3r should == [1,0,0]: a3r: ", a3r]);
   var b3r = roty(b3);
-  // console.log(["B rotated y axis by a.lng. b3r: ", b3r]);
-  if (b3r[2] < 0) cosZab = - cosZab;
+  if (debug) console.log(["B rotated y axis by a.lng. b3r: ", b3r]);
+  var sinZab = b3r[1], cosZab = b3r[2];
+  var l = Math.sqrt(sinZab * sinZab + cosZab * cosZab);
+  sinZab /= l; cosZab /= l;
+  if (debug) console.log("cosZab = " + cosZab + ", sinZab = " + sinZab);
   var rotx = function(p) {
     return [p[0],
             cosZab * p[1] - sinZab * p[2],
             sinZab * p[1] + cosZab * p[2]];
   };
-  // var b3rr = rotx(b3r);
-  // console.log(["B rotated x axis by Zab. b3rr should == [cosAB, 0, sinAB]: b3rr: ", b3rr]);
-  // console.log(["cosAB, sinAB = ", [Math.cos(ab), Math.sin(ab)]]);
+  var b3rr = rotx(b3r);
+  if (debug) console.log(["B rotated x axis by Zab. b3rr should == [cosAB, 0, sinAB]: b3rr: ", b3rr]);
+  if (debug) console.log(["cosAB, sinAB = ", [Math.cos(ab), Math.sin(ab)]]);
   var c3rr = rotx(roty(c3));
   var p3rr = rotx(roty(p3));
-  // console.log(["c3rr: ", c3rr]);
-  // console.log(["p3rr: ", p3rr]);
+  if (debug) console.log(["c3rr: ", c3rr]);
+  if (debug) console.log(["p3rr: ", p3rr]);
   // see if c and p reside on same hemisphere eastern/western
-  return Math.sign(c3rr[1] * p3rr[1]);
+  var result = Math.sign(c3rr[1] * p3rr[1])
+  if (debug) console.log("result : " + result);
+  return result;
 };
 
 
@@ -111,8 +112,12 @@ window.plugin.multilayerPlanner.overlayerPossible = function (latlngs,p) {
   var abc = window.plugin.multilayerPlanner.sameSide(a,b,c,p);
   var bca = window.plugin.multilayerPlanner.sameSide(b,c,a,p);
   var cab = window.plugin.multilayerPlanner.sameSide(c,a,b,p);
+  // console.log("overlayerPossible: sameSides result: abc = " + abc + ", bca = " + bca + ", cab = " + cab);
 
-  if (abc == 0 || bca == 0 || cab == 0) return null; // some is online
+  if (abc == 0 || bca == 0 || cab == 0) {
+    // console.log("overlayerPossible: some is on line");
+    return null; // some is online
+  }
   if (abc > 0 && bca < 0 && cab < 0) return [a,b];
   if (bca > 0 && cab < 0 && abc < 0) return [b,c];
   if (cab > 0 && abc < 0 && bca < 0) return [c,a];
@@ -180,7 +185,7 @@ window.plugin.multilayerPlanner.pointInPolygon = function ( polygon, pt ) {
 
   var onpoly = false;
   for(var c = false, i = -1, l = poly.length, j = l - 1; ++i < l; j = i) {
-    if (poly[i].lat == pt.lat && poly[i].lng == pt.lng)
+    if (poly[i].equals(pt))
       onpoly = true;
     if (((poly[i].lat <= pt.lat && pt.lat < poly[j].lat) ||
          (poly[j].lat <= pt.lat && pt.lat < poly[i].lat)) &&
@@ -189,6 +194,23 @@ window.plugin.multilayerPlanner.pointInPolygon = function ( polygon, pt ) {
     }
   }
   return c | onpoly;
+};
+
+window.plugin.multilayerPlanner.triangleEqual = function(a,b) {
+  var a_points = a.getLatLngs();
+  var b_points = b.getLatLngs();
+  if (a_points.length !== b_points.length) return false;
+  var sorter = function(x, y) {
+    var lat = x.lat - y.lat;
+    return lat === 0.0 ? lat : x.lng - y.lng;
+  };
+  a_points = a_points.sort(sorter);
+  b_points = b_points.sort(sorter);
+  for (var i = 0; i < a_points.length; i++) {
+    if (!a_points[i].equals(b_points[i]))
+      return false;
+  }
+  return true;
 };
 
 // Be sure to run after draw-tool is loaded.
@@ -318,7 +340,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
                 layer instanceof L.Polyline) {
               if (layer.getLatLngs().length == 3) {
                 if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
-                  candidates.push([Math.abs(window.plugin.multilayerPlanner.polygonInfo(layer).area), layer]);
+                  candidates.push([window.plugin.multilayerPlanner.polygonInfo(layer).area, layer]);
                 }
               }
             }
@@ -399,7 +421,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
     _getTooltipText: function() {
       if (this._base === null) {
         if (this._markers.length == 0) {
-          return { text: 'Click on an existing field or choose three portals' };
+          return { text: 'Click on an existing trigon or choose three portals' };
         } else if (this._markers.length == 1) {
           return { text: 'Click on the second portal' };
         } else if (this._markers.length == 2) {
@@ -419,8 +441,9 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
       // draw the guide line
       this._clearGuides();
 
-      // draw guides iff new overlayer is possible
       if (this._base) {
+        // Adding new layer mode.
+        // draw guides iff new overlayer is possible
         var latlngs = this._base.getLatLngs();
         var ab = window.plugin.multilayerPlanner.overlayerPossible(latlngs, latlng);
         if (ab) {
@@ -428,6 +451,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
           this._drawGuide(this._map.latLngToLayerPoint(ab[1]), newPos);
         }
       } else {
+        // Setting the first layer mode.
         if (this._markers) {
           if (this._markers[0]) {
             this._drawGuide(this._map.latLngToLayerPoint(this._markers[0].getLatLng()), newPos);
@@ -490,7 +514,7 @@ window.plugin.multilayerPlanner.polygonInfo = function(polygon) {
   }
   glat /= (area + 0.0);
   glng /= (area + 0.0);
-  return { area: area, cog: new L.LatLng(glat, glng) };
+  return { area: Math.abs(area), cog: new L.LatLng(glat, glng) };
 };
 
 window.plugin.multilayerPlanner.onBtnClick = function(ev) {
@@ -504,7 +528,7 @@ window.plugin.multilayerPlanner.onBtnClick = function(ev) {
   } else {
     layer = window.plugin.multilayerPlanner.overlayer = new L.Overlayer(map, {});
     layer.on('disabled', function() {
-      console.log("on disabled event");
+      // console.log("on disabled event");
       btn.classList.remove("active");
     });
     layer.enable();
