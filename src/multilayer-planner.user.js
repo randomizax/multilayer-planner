@@ -19,15 +19,15 @@
 // PLUGIN START ////////////////////////////////////////////////////////
 
 // use own namespace for plugin
-window.plugin.multilayerPlanner = {};
-window.plugin.multilayerPlanner.overlayer = null;
+var M = window.plugin.multilayerPlanner = {};
+M.overlayer = null;
 
 // Determine whether point c, p is on the same side of the line a-b.
 //  return positive if same
 //  return negative if opposite
 //  return zero if either p or c is exactly on a-b
 
-window.plugin.multilayerPlanner.sameSide = function (a, b, c, p, debug) {
+M.sameSide = function (a, b, c, p, debug) {
   if (debug) console.log(["sameSide start args: a, b, c, p = ", a, b, c, p]);
 
   // normalize point b and p around a
@@ -107,15 +107,16 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p, debug) {
 //  that covers and shares two vertices with the triangle abc
 //  returns null if not possible
 //  returns [x,y] where xy is the common baseline
-window.plugin.multilayerPlanner.overlayerPossible = function (latlngs,p) {
+M.overlayerPossible = function (latlngs, p, debug) {
   var a = latlngs[0], b = latlngs[1], c = latlngs[2];
-  var abc = window.plugin.multilayerPlanner.sameSide(a,b,c,p);
-  var bca = window.plugin.multilayerPlanner.sameSide(b,c,a,p);
-  var cab = window.plugin.multilayerPlanner.sameSide(c,a,b,p);
-  // console.log("overlayerPossible: sameSides result: abc = " + abc + ", bca = " + bca + ", cab = " + cab);
+  var abc = M.sameSide(a,b,c,p);
+  var bca = M.sameSide(b,c,a,p);
+  var cab = M.sameSide(c,a,b,p);
+
+  if (debug) console.log("overlayerPossible: sameSides result: abc = " + abc + ", bca = " + bca + ", cab = " + cab);
 
   if (abc == 0 || bca == 0 || cab == 0) {
-    // console.log("overlayerPossible: some is on line");
+    if (debug) console.log("overlayerPossible: some is on line");
     return null; // some is online
   }
   if (abc > 0 && bca < 0 && cab < 0) return [a,b];
@@ -124,40 +125,6 @@ window.plugin.multilayerPlanner.overlayerPossible = function (latlngs,p) {
   return null;
 };
 
-/*
-// Interpolate between a and b at ratio lngPos (0..1).
-window.plugin.multilayerPlanner.geodesicInterpolate = function (a, b, lngPos) {
-  var R = 6378137; // earth radius in meters (doesn't have to be exact)
-  var d2r = Math.PI/180.0;
-  var r2d = 180.0/Math.PI;
-
-  // maths based on http://williams.best.vwh.net/avform.htm#Int
-
-  var lat1 = a.lat * d2r;
-  var lat2 = b.lat * d2r;
-  var lng1 = a.lng * d2r;
-  var lng2 = b.lng * d2r;
-
-  var dLng = lng2-lng1;
-
-  var sinLat1 = Math.sin(lat1);
-  var sinLat2 = Math.sin(lat2);
-  var cosLat1 = Math.cos(lat1);
-  var cosLat2 = Math.cos(lat2);
-
-  var sinLat1CosLat2 = sinLat1*cosLat2;
-  var sinLat2CosLat1 = sinLat2*cosLat1;
-
-  var cosLat1CosLat2SinDLng = cosLat1*cosLat2*Math.sin(dLng);
-
-  var iLng = lng1+dLng * lngPos;
-  var iLat = Math.atan( (sinLat1CosLat2*Math.sin(lng2-iLng) + sinLat2CosLat1*Math.sin(iLng-lng1))
-                        / cosLat1CosLat2SinDLng)
-
-  var point = L.latLng ( [iLat*r2d, iLng*r2d] );
-  return point;
-};
-*/
 
 // Detect if a point is inside polygon.
 /*
@@ -180,7 +147,7 @@ WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEM
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-window.plugin.multilayerPlanner.pointInPolygon = function ( polygon, pt ) {
+M.pointInPolygon = function ( polygon, pt ) {
   var poly = polygon.getLatLngs();
 
   var onpoly = false;
@@ -196,7 +163,7 @@ window.plugin.multilayerPlanner.pointInPolygon = function ( polygon, pt ) {
   return c | onpoly;
 };
 
-window.plugin.multilayerPlanner.triangleEqual = function(a,b) {
+M.triangleEqual = function(a,b) {
   var a_points = a.getLatLngs();
   var b_points = b.getLatLngs();
   if (a_points.length !== b_points.length) return false;
@@ -214,7 +181,7 @@ window.plugin.multilayerPlanner.triangleEqual = function(a,b) {
 };
 
 // Be sure to run after draw-tool is loaded.
-window.plugin.multilayerPlanner.defineOverlayer = function(L) {
+M.defineOverlayer = function(L) {
   if (L.Overlayer) return;
 
   L.Overlayer = L.Draw.Polyline.extend({
@@ -339,8 +306,8 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
                 layer instanceof L.GeodesicPolyline ||
                 layer instanceof L.Polyline) {
               if (layer.getLatLngs().length == 3) {
-                if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
-                  candidates.push([window.plugin.multilayerPlanner.polygonInfo(layer).area, layer]);
+                if ( M.pointInPolygon( layer, newPos ) ) {
+                  candidates.push([M.polygonInfo(layer).area, layer]);
                 }
               }
             }
@@ -401,7 +368,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 
         // create new layer
         var latlngs = this._base.getLatLngs();
-        var ab = window.plugin.multilayerPlanner.overlayerPossible(latlngs, newPos);
+        var ab = M.overlayerPossible(latlngs, newPos);
 
         if (ab == null) {
           this._showErrorTooltip();
@@ -445,7 +412,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
         // Adding new layer mode.
         // draw guides iff new overlayer is possible
         var latlngs = this._base.getLatLngs();
-        var ab = window.plugin.multilayerPlanner.overlayerPossible(latlngs, latlng);
+        var ab = M.overlayerPossible(latlngs, latlng);
         if (ab) {
           this._drawGuide(this._map.latLngToLayerPoint(ab[0]), newPos);
           this._drawGuide(this._map.latLngToLayerPoint(ab[1]), newPos);
@@ -498,7 +465,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 };
 
 // return { area: area, cog: center_of_gravity_latlng }
-window.plugin.multilayerPlanner.polygonInfo = function(polygon) {
+M.polygonInfo = function(polygon) {
   var poly = polygon.getLatLngs();
   var n = poly.length;
   if (n == 0) return [ 0, null ] ;
@@ -517,29 +484,39 @@ window.plugin.multilayerPlanner.polygonInfo = function(polygon) {
   return { area: Math.abs(area), cog: new L.LatLng(glat, glng) };
 };
 
-window.plugin.multilayerPlanner.onBtnClick = function(ev) {
-  var btn = window.plugin.multilayerPlanner.button,
-  tooltip = window.plugin.multilayerPlanner.tooltip,
-  layer = window.plugin.multilayerPlanner.layer;
+M.onBtnClick = function(ev) {
+  var btn = M.button,
+  tooltip = M.tooltip,
+  layer = M.layer;
 
   if (btn.classList.contains("active")) {
-    window.plugin.multilayerPlanner.overlayer.disable();
+    M.overlayer.disable();
     btn.classList.remove("active");
   } else {
-    layer = window.plugin.multilayerPlanner.overlayer = new L.Overlayer(map, {});
+    layer = M.overlayer = new L.Overlayer(map, {});
     layer.on('disabled', function() {
       // console.log("on disabled event");
       btn.classList.remove("active");
     });
     layer.enable();
     btn.classList.add("active");
+    var drawControl = window.plugin.drawTools.drawControl;
+    for (var toolbarId in drawControl._toolbars) {
+      if (drawControl._toolbars[toolbarId] instanceof L.Toolbar) {
+        drawControl._toolbars[toolbarId].disable();
+        drawControl._toolbars[toolbarId].on('enable', function() {
+          if (M.overlayer)
+            M.overlayer.disable();
+        });
+      }
+    }
   }
 };
 
 /*
-window.plugin.multilayerPlanner.onTipClick = function(ev) {
+M.onTipClick = function(ev) {
   dialog({
-    html: $('<div id="multilayerPlanner">' + window.plugin.multilayerPlanner.farm.count() + "</div>"),
+    html: $('<div id="multilayerPlanner">' + M.farm.count() + "</div>"),
     dialogClass: 'ui-dialog-multilayer-planner',
     title: 'Multilayer Planner',
     id: 'multilayer-planner-copy',
@@ -551,18 +528,18 @@ window.plugin.multilayerPlanner.onTipClick = function(ev) {
 var setup = function() {
   $('<style>').prop('type', 'text/css').html('@@INCLUDESTRING:src/multilayer-planner.css@@').appendTo('head');
 
-  window.plugin.multilayerPlanner.defineOverlayer(L);
+  M.defineOverlayer(L);
 
   var parent = $(".leaflet-top.leaflet-left", window.map.getContainer());
 
   var button = document.createElement("a");
   button.className = "leaflet-bar-part";
-  button.addEventListener("click", window.plugin.multilayerPlanner.onBtnClick, false);
+  button.addEventListener("click", M.onBtnClick, false);
   button.title = 'Plan multilayer fields';
 
   var tooltip = document.createElement("div");
   tooltip.className = "leaflet-control-multilayer-planner-tooltip";
-  // tooltip.addEventListener("click", window.plugin.multilayerPlanner.onTipClick, false);
+  // tooltip.addEventListener("click", M.onTipClick, false);
   button.appendChild(tooltip);
 
   var container = document.createElement("div");
@@ -570,9 +547,9 @@ var setup = function() {
   container.appendChild(button);
   parent.append(container);
 
-  window.plugin.multilayerPlanner.button = button;
-  window.plugin.multilayerPlanner.tooltip = tooltip;
-  window.plugin.multilayerPlanner.container = container;
+  M.button = button;
+  M.tooltip = tooltip;
+  M.container = container;
 };
 
 

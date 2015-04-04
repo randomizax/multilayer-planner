@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.8.20150404.55724
+// @version        0.1.8.20150404.130411
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2015-04-04-055724] Draw layered CF plans.
+// @description    [randomizax-2015-04-04-130411] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20150404.55724';
+// plugin_info.dateTimeVersion = '20150404.130411';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -31,15 +31,15 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 // PLUGIN START ////////////////////////////////////////////////////////
 
 // use own namespace for plugin
-window.plugin.multilayerPlanner = {};
-window.plugin.multilayerPlanner.overlayer = null;
+var M = window.plugin.multilayerPlanner = {};
+M.overlayer = null;
 
 // Determine whether point c, p is on the same side of the line a-b.
 //  return positive if same
 //  return negative if opposite
 //  return zero if either p or c is exactly on a-b
 
-window.plugin.multilayerPlanner.sameSide = function (a, b, c, p, debug) {
+M.sameSide = function (a, b, c, p, debug) {
   if (debug) console.log(["sameSide start args: a, b, c, p = ", a, b, c, p]);
 
   // normalize point b and p around a
@@ -119,15 +119,16 @@ window.plugin.multilayerPlanner.sameSide = function (a, b, c, p, debug) {
 //  that covers and shares two vertices with the triangle abc
 //  returns null if not possible
 //  returns [x,y] where xy is the common baseline
-window.plugin.multilayerPlanner.overlayerPossible = function (latlngs,p) {
+M.overlayerPossible = function (latlngs, p, debug) {
   var a = latlngs[0], b = latlngs[1], c = latlngs[2];
-  var abc = window.plugin.multilayerPlanner.sameSide(a,b,c,p);
-  var bca = window.plugin.multilayerPlanner.sameSide(b,c,a,p);
-  var cab = window.plugin.multilayerPlanner.sameSide(c,a,b,p);
-  // console.log("overlayerPossible: sameSides result: abc = " + abc + ", bca = " + bca + ", cab = " + cab);
+  var abc = M.sameSide(a,b,c,p);
+  var bca = M.sameSide(b,c,a,p);
+  var cab = M.sameSide(c,a,b,p);
+
+  if (debug) console.log("overlayerPossible: sameSides result: abc = " + abc + ", bca = " + bca + ", cab = " + cab);
 
   if (abc == 0 || bca == 0 || cab == 0) {
-    // console.log("overlayerPossible: some is on line");
+    if (debug) console.log("overlayerPossible: some is on line");
     return null; // some is online
   }
   if (abc > 0 && bca < 0 && cab < 0) return [a,b];
@@ -136,40 +137,6 @@ window.plugin.multilayerPlanner.overlayerPossible = function (latlngs,p) {
   return null;
 };
 
-/*
-// Interpolate between a and b at ratio lngPos (0..1).
-window.plugin.multilayerPlanner.geodesicInterpolate = function (a, b, lngPos) {
-  var R = 6378137; // earth radius in meters (doesn't have to be exact)
-  var d2r = Math.PI/180.0;
-  var r2d = 180.0/Math.PI;
-
-  // maths based on http://williams.best.vwh.net/avform.htm#Int
-
-  var lat1 = a.lat * d2r;
-  var lat2 = b.lat * d2r;
-  var lng1 = a.lng * d2r;
-  var lng2 = b.lng * d2r;
-
-  var dLng = lng2-lng1;
-
-  var sinLat1 = Math.sin(lat1);
-  var sinLat2 = Math.sin(lat2);
-  var cosLat1 = Math.cos(lat1);
-  var cosLat2 = Math.cos(lat2);
-
-  var sinLat1CosLat2 = sinLat1*cosLat2;
-  var sinLat2CosLat1 = sinLat2*cosLat1;
-
-  var cosLat1CosLat2SinDLng = cosLat1*cosLat2*Math.sin(dLng);
-
-  var iLng = lng1+dLng * lngPos;
-  var iLat = Math.atan( (sinLat1CosLat2*Math.sin(lng2-iLng) + sinLat2CosLat1*Math.sin(iLng-lng1))
-                        / cosLat1CosLat2SinDLng)
-
-  var point = L.latLng ( [iLat*r2d, iLng*r2d] );
-  return point;
-};
-*/
 
 // Detect if a point is inside polygon.
 /*
@@ -192,7 +159,7 @@ WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEM
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-window.plugin.multilayerPlanner.pointInPolygon = function ( polygon, pt ) {
+M.pointInPolygon = function ( polygon, pt ) {
   var poly = polygon.getLatLngs();
 
   var onpoly = false;
@@ -208,7 +175,7 @@ window.plugin.multilayerPlanner.pointInPolygon = function ( polygon, pt ) {
   return c | onpoly;
 };
 
-window.plugin.multilayerPlanner.triangleEqual = function(a,b) {
+M.triangleEqual = function(a,b) {
   var a_points = a.getLatLngs();
   var b_points = b.getLatLngs();
   if (a_points.length !== b_points.length) return false;
@@ -226,7 +193,7 @@ window.plugin.multilayerPlanner.triangleEqual = function(a,b) {
 };
 
 // Be sure to run after draw-tool is loaded.
-window.plugin.multilayerPlanner.defineOverlayer = function(L) {
+M.defineOverlayer = function(L) {
   if (L.Overlayer) return;
 
   L.Overlayer = L.Draw.Polyline.extend({
@@ -351,8 +318,8 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
                 layer instanceof L.GeodesicPolyline ||
                 layer instanceof L.Polyline) {
               if (layer.getLatLngs().length == 3) {
-                if ( window.plugin.multilayerPlanner.pointInPolygon( layer, newPos ) ) {
-                  candidates.push([window.plugin.multilayerPlanner.polygonInfo(layer).area, layer]);
+                if ( M.pointInPolygon( layer, newPos ) ) {
+                  candidates.push([M.polygonInfo(layer).area, layer]);
                 }
               }
             }
@@ -413,7 +380,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 
         // create new layer
         var latlngs = this._base.getLatLngs();
-        var ab = window.plugin.multilayerPlanner.overlayerPossible(latlngs, newPos);
+        var ab = M.overlayerPossible(latlngs, newPos);
 
         if (ab == null) {
           this._showErrorTooltip();
@@ -457,7 +424,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
         // Adding new layer mode.
         // draw guides iff new overlayer is possible
         var latlngs = this._base.getLatLngs();
-        var ab = window.plugin.multilayerPlanner.overlayerPossible(latlngs, latlng);
+        var ab = M.overlayerPossible(latlngs, latlng);
         if (ab) {
           this._drawGuide(this._map.latLngToLayerPoint(ab[0]), newPos);
           this._drawGuide(this._map.latLngToLayerPoint(ab[1]), newPos);
@@ -510,7 +477,7 @@ window.plugin.multilayerPlanner.defineOverlayer = function(L) {
 };
 
 // return { area: area, cog: center_of_gravity_latlng }
-window.plugin.multilayerPlanner.polygonInfo = function(polygon) {
+M.polygonInfo = function(polygon) {
   var poly = polygon.getLatLngs();
   var n = poly.length;
   if (n == 0) return [ 0, null ] ;
@@ -529,29 +496,39 @@ window.plugin.multilayerPlanner.polygonInfo = function(polygon) {
   return { area: Math.abs(area), cog: new L.LatLng(glat, glng) };
 };
 
-window.plugin.multilayerPlanner.onBtnClick = function(ev) {
-  var btn = window.plugin.multilayerPlanner.button,
-  tooltip = window.plugin.multilayerPlanner.tooltip,
-  layer = window.plugin.multilayerPlanner.layer;
+M.onBtnClick = function(ev) {
+  var btn = M.button,
+  tooltip = M.tooltip,
+  layer = M.layer;
 
   if (btn.classList.contains("active")) {
-    window.plugin.multilayerPlanner.overlayer.disable();
+    M.overlayer.disable();
     btn.classList.remove("active");
   } else {
-    layer = window.plugin.multilayerPlanner.overlayer = new L.Overlayer(map, {});
+    layer = M.overlayer = new L.Overlayer(map, {});
     layer.on('disabled', function() {
       // console.log("on disabled event");
       btn.classList.remove("active");
     });
     layer.enable();
     btn.classList.add("active");
+    var drawControl = window.plugin.drawTools.drawControl;
+    for (var toolbarId in drawControl._toolbars) {
+      if (drawControl._toolbars[toolbarId] instanceof L.Toolbar) {
+        drawControl._toolbars[toolbarId].disable();
+        drawControl._toolbars[toolbarId].on('enable', function() {
+          if (M.overlayer)
+            M.overlayer.disable();
+        });
+      }
+    }
   }
 };
 
 /*
-window.plugin.multilayerPlanner.onTipClick = function(ev) {
+M.onTipClick = function(ev) {
   dialog({
-    html: $('<div id="multilayerPlanner">' + window.plugin.multilayerPlanner.farm.count() + "</div>"),
+    html: $('<div id="multilayerPlanner">' + M.farm.count() + "</div>"),
     dialogClass: 'ui-dialog-multilayer-planner',
     title: 'Multilayer Planner',
     id: 'multilayer-planner-copy',
@@ -563,18 +540,18 @@ window.plugin.multilayerPlanner.onTipClick = function(ev) {
 var setup = function() {
   $('<style>').prop('type', 'text/css').html('.leaflet-control-multilayer-planner a\n{\n	background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAACAklEQVRYw+3Xu2tUQRQG8N9uIiiIhdqIBJFALDVg8AEWNqewslBirRYWgqA2NoJIxH9CLSwEwXc3jcZHobHRQhs1Cj66iGBhEV0L78Lluo97726wMF+1Mzsz35zzfefsLMv439FYqoMjov2xBSmljlzNJSbvi+YAJKsiYnoQchitE0lKCY5jKiJmMZZSmsstaXU4q5Xb3+jrgT6RrMMr7MQmXMIWLHa7QNF7WRCdJSiRxkUcSynNp5Qe4AsOFczdKATYae7vDFTVMMMOrMDjDt+1ilGX9kAXbMSnwtzTfps6kZe+QHtzREziNsbbeucPjohmFnGrbK8ZrVjXFzGTM1sRV3EDN4dShgWsxkdczs2N421ufB3ncAutbmmv24i+40gu+mm8iYijuTV38RUTZci76lOiEvbgYW58GFd6mW2QDKzEHNZm460FcpksB9qXr1LKZTrh6azOD2IM73p4Zz/uYA1O4Hy/jDT6uL+J51mXW8B8ZsZe2ItZvMSpP6qkehKklH5hKmu1r0uQw33swgWcHYYHRrMsrK/grSf4gJO1+0BEnMnq+homarTsR9hWtwwncQ8vsG+Ax1FbwoWU0vsqEsxkKRyEvH3+syyLlTzwGbuH9EQcwfaI2FxKgogYwYYKKf5Rcu3PlNK3oTzLqz5aevWB2v8Lylyi6u/CMv4JfgMCF49kRK1Z6AAAAABJRU5ErkJggg==);\n}\n.leaflet-control-multilayer-planner a.active\n{\n	background-color: #BBB;\n}\n.leaflet-control-multilayer-planner-tooltip\n{\n	background-color: rgba(255, 255, 255, 0.6);\n	display: none;\n	height: 44px;\n	left: 30px;\n	line-height: 15px;\n	margin-left: 15px;\n	margin-top: -12px;\n	padding: 4px 10px;\n	position: absolute;\n	top: 50%;\n	white-space: nowrap;\n	width: auto;\n}\n.leaflet-control-multilayer-planner a.active .leaflet-control-multilayer-planner-tooltip\n{\n	display: block;\n}\n.leaflet-control-multilayer-planner a.finish .leaflet-control-multilayer-planner-tooltip\n{\n	display: block;\n}\n.leaflet-control-multilayer-planner-tooltip:before\n{\n	border-color: transparent rgba(255, 255, 255, 0.6);\n	border-style: solid;\n	border-width: 12px 12px 12px 0;\n	content: "";\n	display: block;\n	height: 0;\n	left: -12px;\n	position: absolute;\n	width: 0;\n}\n').appendTo('head');
 
-  window.plugin.multilayerPlanner.defineOverlayer(L);
+  M.defineOverlayer(L);
 
   var parent = $(".leaflet-top.leaflet-left", window.map.getContainer());
 
   var button = document.createElement("a");
   button.className = "leaflet-bar-part";
-  button.addEventListener("click", window.plugin.multilayerPlanner.onBtnClick, false);
+  button.addEventListener("click", M.onBtnClick, false);
   button.title = 'Plan multilayer fields';
 
   var tooltip = document.createElement("div");
   tooltip.className = "leaflet-control-multilayer-planner-tooltip";
-  // tooltip.addEventListener("click", window.plugin.multilayerPlanner.onTipClick, false);
+  // tooltip.addEventListener("click", M.onTipClick, false);
   button.appendChild(tooltip);
 
   var container = document.createElement("div");
@@ -582,9 +559,9 @@ var setup = function() {
   container.appendChild(button);
   parent.append(container);
 
-  window.plugin.multilayerPlanner.button = button;
-  window.plugin.multilayerPlanner.tooltip = tooltip;
-  window.plugin.multilayerPlanner.container = container;
+  M.button = button;
+  M.tooltip = tooltip;
+  M.container = container;
 };
 
 
