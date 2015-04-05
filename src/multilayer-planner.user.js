@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.1.9.@@DATETIMEVERSION@@
+// @version        0.2.0.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -181,7 +181,7 @@ M.triangleEqual = function(a,b) {
 };
 
 // Be sure to run after draw-tool is loaded.
-M.defineOverlayer = function(L) {
+M.defineOverlayer = function(L, button) {
   if (L.Overlayer) return;
 
   L.Overlayer = L.Draw.Polyline.extend({
@@ -218,6 +218,10 @@ M.defineOverlayer = function(L) {
 
       L.Draw.Polyline.prototype.initialize.call(this, map, options);
 
+      this._base = null;
+    },
+
+    reset: function () {
       this._base = null;
     },
 
@@ -462,6 +466,34 @@ M.defineOverlayer = function(L) {
 
     _cleanUpShape: function () {}
   });
+
+  layer = M.overlayer = new L.Overlayer(window.map, {});
+  layer.on('enabled', function() {
+    button.classList.add("active");
+  });
+  layer.on('disabled', function() {
+    button.classList.remove("active");
+  });
+
+  button.addEventListener("click", function(ev) {
+    if (button.classList.contains("active")) {
+      layer.disable();
+    } else {
+      layer.reset();
+      layer.enable();
+    }
+  });
+
+  var drawControl = window.plugin.drawTools.drawControl;
+  for (var toolbarId in drawControl._toolbars) {
+    if (drawControl._toolbars[toolbarId] instanceof L.Toolbar) {
+      drawControl._toolbars[toolbarId].disable();
+      drawControl._toolbars[toolbarId].on('enable', function() {
+        if (M.overlayer)
+          M.overlayer.disable();
+      });
+    }
+  }
 };
 
 // return { area: area, cog: center_of_gravity_latlng }
@@ -484,35 +516,6 @@ M.polygonInfo = function(polygon) {
   return { area: Math.abs(area), cog: new L.LatLng(glat, glng) };
 };
 
-M.onBtnClick = function(ev) {
-  var btn = M.button,
-  tooltip = M.tooltip,
-  layer = M.layer;
-
-  if (btn.classList.contains("active")) {
-    M.overlayer.disable();
-    btn.classList.remove("active");
-  } else {
-    layer = M.overlayer = new L.Overlayer(map, {});
-    layer.on('disabled', function() {
-      // console.log("on disabled event");
-      btn.classList.remove("active");
-    });
-    layer.enable();
-    btn.classList.add("active");
-    var drawControl = window.plugin.drawTools.drawControl;
-    for (var toolbarId in drawControl._toolbars) {
-      if (drawControl._toolbars[toolbarId] instanceof L.Toolbar) {
-        drawControl._toolbars[toolbarId].disable();
-        drawControl._toolbars[toolbarId].on('enable', function() {
-          if (M.overlayer)
-            M.overlayer.disable();
-        });
-      }
-    }
-  }
-};
-
 /*
 M.onTipClick = function(ev) {
   dialog({
@@ -528,13 +531,10 @@ M.onTipClick = function(ev) {
 var setup = function() {
   $('<style>').prop('type', 'text/css').html('@@INCLUDESTRING:src/multilayer-planner.css@@').appendTo('head');
 
-  M.defineOverlayer(L);
-
   var parent = $(".leaflet-top.leaflet-left", window.map.getContainer());
 
   var button = document.createElement("a");
   button.className = "leaflet-bar-part";
-  button.addEventListener("click", M.onBtnClick, false);
   button.title = 'Plan multilayer fields';
 
   var tooltip = document.createElement("div");
@@ -550,6 +550,8 @@ var setup = function() {
   M.button = button;
   M.tooltip = tooltip;
   M.container = container;
+
+  M.defineOverlayer(L, M.button);
 };
 
 
