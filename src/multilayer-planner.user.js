@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.2.0.@@DATETIMEVERSION@@
+// @version        0.2.1.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -180,6 +180,74 @@ M.triangleEqual = function(a,b) {
   return true;
 };
 
+// See if two triangles have a common edge.
+// return [0] if two triangles are equal
+// return [1, p, q] if a includes b and pq is the common edge
+// return [2, p, q] if b includes a and pq is the common edge
+// return [3, p, q] if a and b have a common edge pq, and a and b don't intersect
+// return [4, p, q] if a and b have a common edge pq, but and b intersect
+// return [5] if a and b don't have a common edge
+M.commonEdge = function(a,b) {
+  var a_points = a.getLatLngs();
+  var b_points = b.getLatLngs();
+  if (a_points.length !== 3 ||
+      b_points.length !== 3)
+    return [5];
+  var points = {};
+  var addPoints = function(latlngs, label) {
+    latlngs.forEach(function (p){
+      var s = p.toString();
+      points[s] = points[s] || [];
+      points[s].push([label, p]);
+    });
+  };
+  addPoints(a_points, 'a');
+  addPoints(b_points, 'b');
+  var keys = Object.keys(points);
+  if (keys.length === 3) {
+    return [0];
+  } else if (keys.length !== 4) {
+    return [5];
+  }
+  var p, q, ap, bp;
+  keys.forEach(function (k) {
+    if (points[k].length === 2) {
+      if (p) q = points[k][0][1];
+      else   p = points[k][0][1];
+    } else if (points[k][0][0] == 'a') {
+      ap = points[k][0][1];
+    } else {
+      bp = points[k][0][1];
+    }
+  });
+  if (M.pointInPolygon(a, bp))
+    return [1, p, q];
+  if (M.pointInPolygon(b, ap))
+    return [2, p, q];
+  if (M.sameSide(p, q, ap, bp) > 0)
+    return [4, p, q];
+  return [3, p, q];
+};
+
+// M.commonEdge Test cases
+// M.p00 = L.latLng(0,0);
+// M.p10 = L.latLng(1,0);
+// M.p01 = L.latLng(0,1);
+// M.p02 = L.latLng(0,2);
+// M.p11 = L.latLng(1,1);
+// M.p21 = L.latLng(2,1);
+// M.pA = L.polygon([M.p00,M.p01,M.p10],{});
+// M.pB = L.polygon([M.p00,M.p02,M.p11],{});
+// M.pC = L.polygon([M.p00,M.p21,M.p02],{});
+// M.pD = L.polygon([M.p01,M.p10,M.p11],{});
+// M.pE = L.polygon([M.p00,M.p02,M.p10],{});
+// console.debug(["commonEdge(A,A) should eq [0]", M.commonEdge(M.pA, M.pA)]);
+// console.debug(["commonEdge(B,C) should eq [2,p00,p02]", M.commonEdge(M.pB, M.pC)]);
+// console.debug(["commonEdge(C,B) should eq [1,p00,p02]", M.commonEdge(M.pC, M.pB)]);
+// console.debug(["commonEdge(A,D) should eq [3,p01,p10]", M.commonEdge(M.pA, M.pD)]);
+// console.debug(["commonEdge(B,E) should eq [4,p00,p02]", M.commonEdge(M.pB, M.pE)]);
+console.debug(["commonEdge(A,C) should eq [5]", M.commonEdge(M.pA, M.pC)]);
+
 // Be sure to run after draw-tool is loaded.
 M.defineOverlayer = function(L, button) {
   if (L.Overlayer) return;
@@ -219,10 +287,14 @@ M.defineOverlayer = function(L, button) {
       L.Draw.Polyline.prototype.initialize.call(this, map, options);
 
       this._base = null;
+      this._layers = [];
+      M.tooltip.innerHTML = '';
     },
 
     reset: function () {
       this._base = null;
+      this._layers = [];
+      M.tooltip.innerHTML = '';
     },
 
     addHooks: function () {
@@ -266,7 +338,6 @@ M.defineOverlayer = function(L, button) {
 
     _finishShape: function () {
       this.disable();
-      this._base = null;
     },
 
     _onZoomEnd: function () {
@@ -291,78 +362,86 @@ M.defineOverlayer = function(L, button) {
       L.DomEvent.preventDefault(e.originalEvent);
     },
 
-    _onClick: function (e) {
-      var newPos = e.target.getLatLng();
-      if (this.options.snapPoint) newPos = this.options.snapPoint(newPos);
+    _addMultiLayer: function(layer) {
+      this._base = layer;
+      this._layers.push(layer);
+      this._updateTooltip();
+      if (M.tooltip) {
+        M.tooltip.innerHTML = this._layers.length + " layers";
+      }
+    },
 
-      if (this._base == null) {
-        if (this._errorShown) {
-	  this._hideErrorTooltip();
-	}
+    _pickFirst: function(newPos) {
+      if (this._errorShown) {
+	this._hideErrorTooltip();
+      }
 
-        if (this._markers.length == 0) {
-
-          // Try picking an existing trigon
-          var candidates = [];
-          window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
-            if (layer instanceof L.GeodesicPolygon ||
-                layer instanceof L.Polygon ||
-                layer instanceof L.GeodesicPolyline ||
-                layer instanceof L.Polyline) {
-              if (layer.getLatLngs().length == 3) {
-                if ( M.pointInPolygon( layer, newPos ) ) {
-                  candidates.push([M.polygonInfo(layer).area, layer]);
-                }
+      if (this._markers.length == 0) {
+        // Try picking an existing trigon
+        var candidates = [];
+        window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
+          if (layer instanceof L.GeodesicPolygon ||
+              layer instanceof L.Polygon ||
+              layer instanceof L.GeodesicPolyline ||
+              layer instanceof L.Polyline) {
+            if (layer.getLatLngs().length == 3) {
+              if ( M.pointInPolygon( layer, newPos ) ) {
+                candidates.push([M.polygonInfo(layer).area, layer]);
               }
             }
-          });
-          if (candidates.length > 0) {
-            // find outermost (i.e. largest) polygon
-            candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
-            polygon = candidates[0][1];
-            this._base = polygon;
           }
+        });
+        if (candidates.length > 0) {
+          // find outermost (i.e. largest) polygon
+          candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
+          polygon = candidates[0][1];
+          this._addMultiLayer(polygon);
+          return;
         }
-        if (this._base == null) {
-          // if we already have that point, ignore
-          var markerCount = this._markers.length;
-          var found = false;
-          if (markerCount >= 1) {
-            var m0 = this._markers[0].getLatLng();
-            if (m0.lat == newPos.lat && m0.lng == newPos.lng) found = true;
-          }
-          if (markerCount >= 2) {
-            var m1 = this._markers[1].getLatLng();
-            if (m1.lat == newPos.lat && m1.lng == newPos.lng) found = true;
-          }
+      }
+      // if we already have that point, ignore
+      var markerCount = this._markers.length;
+      var found = false;
+      if (markerCount >= 1) {
+        var m0 = this._markers[0].getLatLng();
+        if (m0.lat == newPos.lat && m0.lng == newPos.lng) found = true;
+      }
+      if (markerCount >= 2) {
+        var m1 = this._markers[1].getLatLng();
+        if (m1.lat == newPos.lat && m1.lng == newPos.lng) found = true;
+      }
 
-          if (found) {
-            // ignore
-          } else {
-            if (markerCount == 2) {
-              // this completes a base CF
-              var latlngs = [this._markers[0].getLatLng(),
-                             this._markers[1].getLatLng(),
-                             newPos];
-              var layer = L.geodesicPolygon(latlngs, L.extend({},window.plugin.drawTools.polygonOptions));
-              this._fireCreatedEvent(layer);
-              this._base = layer;
+      if (found) {
+        // ignore
+      } else {
+        if (markerCount == 2) {
+          // this completes a base CF
+          var latlngs = [this._markers[0].getLatLng(),
+                         this._markers[1].getLatLng(),
+                         newPos];
+          var layer = L.geodesicPolygon(latlngs, L.extend({},window.plugin.drawTools.polygonOptions));
+          this._fireCreatedEvent(layer);
+          this._addMultiLayer(layer);
 
-              // remove markers from map
-	      this._map.removeLayer(this._markerGroup);
-	      delete this._markerGroup;
-	      delete this._markers;
+          // remove markers from map
+	  this._map.removeLayer(this._markerGroup);
+	  delete this._markerGroup;
+	  delete this._markers;
 
-              // add (dummy) empty layer to make removeHooks happy
-              this._markers = [];
-              this._markerGroup = new L.LayerGroup();
-              this._map.addLayer(this._markerGroup);
-            } else {
-              this._markers.push(this._createMarker(newPos));
-            }
-          }
-          // console.log("nothing");
+          // add (dummy) empty layer to make removeHooks happy
+          this._markers = [];
+          this._markerGroup = new L.LayerGroup();
+          this._map.addLayer(this._markerGroup);
+        } else {
+          this._markers.push(this._createMarker(newPos));
         }
+      }
+      // console.log("nothing");
+    },
+
+    _addPoint: function(newPos) {
+      if (this._base == null) {
+        this._pickFirst(newPos);
       } else {
         if (this.options.snapPoint) newPos = this.options.snapPoint(newPos);
 
@@ -380,9 +459,16 @@ M.defineOverlayer = function(L, button) {
           ab.push(newPos);
           var layer = L.geodesicPolygon(ab, L.extend({},window.plugin.drawTools.polygonOptions));
           this._fireCreatedEvent(layer);
-          this._base = layer;
+          this._addMultiLayer(layer);
         }
       }
+    },
+
+    _onClick: function (e) {
+      var newPos = e.target.getLatLng();
+      if (this.options.snapPoint) newPos = this.options.snapPoint(newPos);
+
+      this._addPoint(newPos);
 
       this._clearGuides();
 
