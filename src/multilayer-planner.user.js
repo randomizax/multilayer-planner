@@ -241,12 +241,12 @@ M.commonEdge = function(a,b) {
 // M.pC = L.polygon([M.p00,M.p21,M.p02],{});
 // M.pD = L.polygon([M.p01,M.p10,M.p11],{});
 // M.pE = L.polygon([M.p00,M.p02,M.p10],{});
-// console.debug(["commonEdge(A,A) should eq [0]", M.commonEdge(M.pA, M.pA)]);
+// console.debug(["commonEdge(A,A) should eq [0]",         M.commonEdge(M.pA, M.pA)]);
 // console.debug(["commonEdge(B,C) should eq [2,p00,p02]", M.commonEdge(M.pB, M.pC)]);
 // console.debug(["commonEdge(C,B) should eq [1,p00,p02]", M.commonEdge(M.pC, M.pB)]);
 // console.debug(["commonEdge(A,D) should eq [3,p01,p10]", M.commonEdge(M.pA, M.pD)]);
 // console.debug(["commonEdge(B,E) should eq [4,p00,p02]", M.commonEdge(M.pB, M.pE)]);
-console.debug(["commonEdge(A,C) should eq [5]", M.commonEdge(M.pA, M.pC)]);
+// console.debug(["commonEdge(A,C) should eq [5]",         M.commonEdge(M.pA, M.pC)]);
 
 // Be sure to run after draw-tool is loaded.
 M.defineOverlayer = function(L, button) {
@@ -458,8 +458,10 @@ M.defineOverlayer = function(L, button) {
         } else {
           ab.push(newPos);
           var layer = L.geodesicPolygon(ab, L.extend({},window.plugin.drawTools.polygonOptions));
-          this._fireCreatedEvent(layer);
-          this._addMultiLayer(layer);
+          if (!M.triangleEqual(this._base, layer)) {
+            this._fireCreatedEvent(layer);
+            this._addMultiLayer(layer);
+          }
         }
       }
     },
