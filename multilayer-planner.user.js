@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.2.1.20150429.162506
+// @version        0.3.0.20160506.172442
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2015-04-29-162506] Draw layered CF plans.
+// @description    [randomizax-2016-05-06-172442] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20150429.162506';
+// plugin_info.dateTimeVersion = '20160506.172442';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -109,7 +109,7 @@ M.sameSide = function (a, b, c, p, debug) {
   if (debug) console.log(["c3rr: ", c3rr]);
   if (debug) console.log(["p3rr: ", p3rr]);
   // see if c and p reside on same hemisphere eastern/western
-  var result = Math.sign(c3rr[1] * p3rr[1])
+  var result = Math.sign(c3rr[1] * p3rr[1]);
   if (debug) console.log("result : " + result);
   return result;
 };
@@ -253,12 +253,12 @@ M.commonEdge = function(a,b) {
 // M.pC = L.polygon([M.p00,M.p21,M.p02],{});
 // M.pD = L.polygon([M.p01,M.p10,M.p11],{});
 // M.pE = L.polygon([M.p00,M.p02,M.p10],{});
-// console.debug(["commonEdge(A,A) should eq [0]", M.commonEdge(M.pA, M.pA)]);
+// console.debug(["commonEdge(A,A) should eq [0]",         M.commonEdge(M.pA, M.pA)]);
 // console.debug(["commonEdge(B,C) should eq [2,p00,p02]", M.commonEdge(M.pB, M.pC)]);
 // console.debug(["commonEdge(C,B) should eq [1,p00,p02]", M.commonEdge(M.pC, M.pB)]);
 // console.debug(["commonEdge(A,D) should eq [3,p01,p10]", M.commonEdge(M.pA, M.pD)]);
 // console.debug(["commonEdge(B,E) should eq [4,p00,p02]", M.commonEdge(M.pB, M.pE)]);
-console.debug(["commonEdge(A,C) should eq [5]", M.commonEdge(M.pA, M.pC)]);
+// console.debug(["commonEdge(A,C) should eq [5]",         M.commonEdge(M.pA, M.pC)]);
 
 // Be sure to run after draw-tool is loaded.
 M.defineOverlayer = function(L, button) {
@@ -383,6 +383,14 @@ M.defineOverlayer = function(L, button) {
       }
     },
 
+    _appendMultiLayer: function(layer) {
+      this._layers.unshift(layer);
+      this._updateTooltip();
+      if (M.tooltip) {
+        M.tooltip.innerHTML = this._layers.length + " layers";
+      }
+    },
+
     _pickFirst: function(newPos) {
       if (this._errorShown) {
 	this._hideErrorTooltip();
@@ -408,6 +416,26 @@ M.defineOverlayer = function(L, button) {
           candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
           polygon = candidates[0][1];
           this._addMultiLayer(polygon);
+          candidates = [];
+          window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
+            if (layer instanceof L.GeodesicPolygon ||
+                layer instanceof L.Polygon ||
+                layer instanceof L.GeodesicPolyline ||
+                layer instanceof L.Polyline) {
+              if (layer.getLatLngs().length == 3) {
+                candidates.push([M.polygonInfo(layer).area, layer]);
+              }
+            }
+          });
+          candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
+          var p = polygon;
+          for (var i = 1; i < candidates.length; i++) {
+            var v = M.commonEdge(p, candidates[i][1]);
+            if (v[0] === 1) {
+              p = candidates[i][1];
+              this._appendMultiLayer(p);
+            }
+          }
           return;
         }
       }
@@ -470,8 +498,10 @@ M.defineOverlayer = function(L, button) {
         } else {
           ab.push(newPos);
           var layer = L.geodesicPolygon(ab, L.extend({},window.plugin.drawTools.polygonOptions));
-          this._fireCreatedEvent(layer);
-          this._addMultiLayer(layer);
+          if (!M.triangleEqual(this._base, layer)) {
+            this._fireCreatedEvent(layer);
+            this._addMultiLayer(layer);
+          }
         }
       }
     },

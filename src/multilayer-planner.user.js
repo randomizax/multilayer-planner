@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.2.1.@@DATETIMEVERSION@@
+// @version        0.3.0.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -97,7 +97,7 @@ M.sameSide = function (a, b, c, p, debug) {
   if (debug) console.log(["c3rr: ", c3rr]);
   if (debug) console.log(["p3rr: ", p3rr]);
   // see if c and p reside on same hemisphere eastern/western
-  var result = Math.sign(c3rr[1] * p3rr[1])
+  var result = Math.sign(c3rr[1] * p3rr[1]);
   if (debug) console.log("result : " + result);
   return result;
 };
@@ -371,6 +371,14 @@ M.defineOverlayer = function(L, button) {
       }
     },
 
+    _appendMultiLayer: function(layer) {
+      this._layers.unshift(layer);
+      this._updateTooltip();
+      if (M.tooltip) {
+        M.tooltip.innerHTML = this._layers.length + " layers";
+      }
+    },
+
     _pickFirst: function(newPos) {
       if (this._errorShown) {
 	this._hideErrorTooltip();
@@ -396,6 +404,26 @@ M.defineOverlayer = function(L, button) {
           candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
           polygon = candidates[0][1];
           this._addMultiLayer(polygon);
+          candidates = [];
+          window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
+            if (layer instanceof L.GeodesicPolygon ||
+                layer instanceof L.Polygon ||
+                layer instanceof L.GeodesicPolyline ||
+                layer instanceof L.Polyline) {
+              if (layer.getLatLngs().length == 3) {
+                candidates.push([M.polygonInfo(layer).area, layer]);
+              }
+            }
+          });
+          candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
+          var p = polygon;
+          for (var i = 1; i < candidates.length; i++) {
+            var v = M.commonEdge(p, candidates[i][1]);
+            if (v[0] === 1) {
+              p = candidates[i][1];
+              this._appendMultiLayer(p);
+            }
+          }
           return;
         }
       }
