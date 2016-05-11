@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.3.0.@@DATETIMEVERSION@@
+// @version        0.4.1.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -298,6 +298,8 @@ M.defineOverlayer = function(L, button) {
     },
 
     addHooks: function () {
+      // console.log(["addHooks"]);
+
       L.Draw.Polyline.prototype.addHooks.call(this);
       if (this._map) {
         this._markers = [];
@@ -324,11 +326,12 @@ M.defineOverlayer = function(L, button) {
 	    opacity: 0,
 	    zIndexOffset: this.options.zIndexOffset,
 	  });
-        }
 
-        this._mouseMarker
+          this._mouseMarker
 	  .on('click', this._onClick, this)
 	  .addTo(this._map);
+          // console.log(["added onClick on _mouseMarker", this._mouseMarker]);
+        }
 
         this._map
 	  .on('mousemove', this._onMouseMove, this)
@@ -379,9 +382,37 @@ M.defineOverlayer = function(L, button) {
       }
     },
 
+    _removeLastMultiLayer: function() {
+      // console.log(["_removeLastMultiLayer", this]);
+      // console.log(["_base before", this._base]);
+      this._layers.pop();
+      if (this._layers.length === 0) {
+        this._base = null;
+      } else {
+        this._base = this._layers[this._layers.length - 1];
+      }
+      // console.log(["_base after", this._base, this]);
+      this._updateTooltip();
+      if (M.tooltip) {
+        M.tooltip.innerHTML = this._layers.length + " layers";
+      }
+    },
+
     _pickFirst: function(newPos) {
+      // console.log(["_pickFirst", newPos]);
       if (this._errorShown) {
 	this._hideErrorTooltip();
+      }
+
+      var on_portal = false;
+      if (this.options.snapPoint) {
+        newPos = this.options.snapPoint(newPos);
+        $.each(window.portals, function(guid, portal) {
+          var ll = portal.getLatLng();
+          if (ll.lat === newPos.lat && ll.lng === newPos.lng) {
+            on_portal = true;
+          }
+        });
       }
 
       if (this._markers.length == 0) {
@@ -404,6 +435,8 @@ M.defineOverlayer = function(L, button) {
           candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
           polygon = candidates[0][1];
           this._addMultiLayer(polygon);
+
+          // find all polygons that are inside the base
           candidates = [];
           window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
             if (layer instanceof L.GeodesicPolygon ||
@@ -417,7 +450,7 @@ M.defineOverlayer = function(L, button) {
           });
           candidates = candidates.sort(function(a, b) { return b[0]-a[0]; });
           var p = polygon;
-          for (var i = 1; i < candidates.length; i++) {
+          for (var i = 0; i < candidates.length; i++) {
             var v = M.commonEdge(p, candidates[i][1]);
             if (v[0] === 1) {
               p = candidates[i][1];
@@ -427,6 +460,12 @@ M.defineOverlayer = function(L, button) {
           return;
         }
       }
+
+      // First trigon not found.  Pick portals as the points.
+      if (!on_portal) {
+        return;
+      }
+
       // if we already have that point, ignore
       var markerCount = this._markers.length;
       var found = false;
@@ -468,33 +507,52 @@ M.defineOverlayer = function(L, button) {
     },
 
     _addPoint: function(newPos) {
+      // console.log(["_addPoint", newPos]);
       if (this._base == null) {
         this._pickFirst(newPos);
       } else {
-        if (this.options.snapPoint) newPos = this.options.snapPoint(newPos);
+        var on_portal = false;
+        if (this.options.snapPoint) {
+          newPos = this.options.snapPoint(newPos);
+          $.each(window.portals, function(guid, portal) {
+            var ll = portal.getLatLng();
+            if (ll.lat === newPos.lat && ll.lng === newPos.lng) {
+              on_portal = true;
+            }
+          });
+        }
 
         if (this._errorShown) {
 	  this._hideErrorTooltip();
 	}
 
-        // create new layer
-        var latlngs = this._base.getLatLngs();
-        var ab = M.overlayerPossible(latlngs, newPos);
-
-        if (ab == null) {
-          this._showErrorTooltip();
+        if (! on_portal) {
+          // remove last layer if clicked inside it
+          if (M.pointInPolygon(this._base, newPos)) {
+            this._removeDrawnTrigon(this._base);
+            this._removeLastMultiLayer();
+          }
         } else {
-          ab.push(newPos);
-          var layer = L.geodesicPolygon(ab, L.extend({},window.plugin.drawTools.polygonOptions));
-          if (!M.triangleEqual(this._base, layer)) {
-            this._fireCreatedEvent(layer);
-            this._addMultiLayer(layer);
+          // create new layer
+          var latlngs = this._base.getLatLngs();
+          var ab = M.overlayerPossible(latlngs, newPos);
+
+          if (ab == null) {
+            this._showErrorTooltip();
+          } else {
+            ab.push(newPos);
+            var layer = L.geodesicPolygon(ab, L.extend({},window.plugin.drawTools.polygonOptions));
+            if (!M.triangleEqual(this._base, layer)) {
+              this._fireCreatedEvent(layer);
+              this._addMultiLayer(layer);
+            }
           }
         }
       }
     },
 
     _onClick: function (e) {
+      // console.log(["_onClick", e]);
       var newPos = e.target.getLatLng();
       if (this.options.snapPoint) newPos = this.options.snapPoint(newPos);
 
@@ -578,6 +636,27 @@ M.defineOverlayer = function(L, button) {
 
     _fireCreatedEvent: function (layer) {
       L.Draw.Feature.prototype._fireCreatedEvent.call(this, layer);
+    },
+
+    _removeDrawnTrigon: function (layer_to_remove) {
+      // console.log(["deleteing", layer_to_remove]);
+      var found_layer = null;
+      window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
+        if (layer instanceof L.GeodesicPolygon ||
+            layer instanceof L.Polygon ||
+            layer instanceof L.GeodesicPolyline ||
+            layer instanceof L.Polyline) {
+          if (layer.getLatLngs().length == 3) {
+            if (M.triangleEqual(layer_to_remove, layer)) {
+              found_layer = layer;
+            }
+          }
+        }
+      });
+      if (found_layer) {
+        window.plugin.drawTools.drawnItems.removeLayer(found_layer);
+        this._map.fire('draw:deleted', { layers: [found_layer] });
+      }
     },
 
     _cleanUpShape: function () {}
