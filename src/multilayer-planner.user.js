@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.4.1.@@DATETIMEVERSION@@
+// @version        0.4.2.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -354,10 +354,11 @@ M.defineOverlayer = function(L, button) {
       // Save latlng
       this._currentLatLng = latlng;
 
-      this._updateTooltip(latlng);
-
       // Update the guide line
       this._updateGuide(latlng);
+
+      // Update the tooltip
+      this._updateTooltip(latlng);
 
       // Update the mouse marker position
       this._mouseMarker.setLatLng(latlng);
@@ -575,7 +576,7 @@ M.defineOverlayer = function(L, button) {
           return { text: 'Whoa there...' };
         }
       } else {
-        return { text: 'Click on a portal to add a layer' };
+        return { text: 'Click on a portal to add a layer' + (this._area||"")};
       }
     },
 
@@ -585,6 +586,7 @@ M.defineOverlayer = function(L, button) {
 
       // draw the guide line
       this._clearGuides();
+      this._area = "";
 
       if (this._base) {
         // Adding new layer mode.
@@ -592,8 +594,14 @@ M.defineOverlayer = function(L, button) {
         var latlngs = this._base.getLatLngs();
         var ab = M.overlayerPossible(latlngs, latlng);
         if (ab) {
+          var ll = latlng
+          if (this.options.snapPoint) ll = this.options.snapPoint(ll);
+          ab.push(ll);
           this._drawGuide(this._map.latLngToLayerPoint(ab[0]), newPos);
           this._drawGuide(this._map.latLngToLayerPoint(ab[1]), newPos);
+          var area = L.GeometryUtil.geodesicArea(ab);
+          var areatext = (area/1000000).toPrecision(4) + "km²";
+          this._area = " (" + areatext + ")";
         }
       } else {
         // Setting the first layer mode.

@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.4.1.20160511.161316
+// @version        0.4.2.20160511.163341
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2016-05-11-161316] Draw layered CF plans.
+// @description    [randomizax-2016-05-11-163341] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20160511.161316';
+// plugin_info.dateTimeVersion = '20160511.163341';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -366,10 +366,11 @@ M.defineOverlayer = function(L, button) {
       // Save latlng
       this._currentLatLng = latlng;
 
-      this._updateTooltip(latlng);
-
       // Update the guide line
       this._updateGuide(latlng);
+
+      // Update the tooltip
+      this._updateTooltip(latlng);
 
       // Update the mouse marker position
       this._mouseMarker.setLatLng(latlng);
@@ -587,7 +588,7 @@ M.defineOverlayer = function(L, button) {
           return { text: 'Whoa there...' };
         }
       } else {
-        return { text: 'Click on a portal to add a layer' };
+        return { text: 'Click on a portal to add a layer' + (this._area||"")};
       }
     },
 
@@ -597,6 +598,7 @@ M.defineOverlayer = function(L, button) {
 
       // draw the guide line
       this._clearGuides();
+      this._area = "";
 
       if (this._base) {
         // Adding new layer mode.
@@ -604,8 +606,14 @@ M.defineOverlayer = function(L, button) {
         var latlngs = this._base.getLatLngs();
         var ab = M.overlayerPossible(latlngs, latlng);
         if (ab) {
+          var ll = latlng
+          if (this.options.snapPoint) ll = this.options.snapPoint(ll);
+          ab.push(ll);
           this._drawGuide(this._map.latLngToLayerPoint(ab[0]), newPos);
           this._drawGuide(this._map.latLngToLayerPoint(ab[1]), newPos);
+          var area = L.GeometryUtil.geodesicArea(ab);
+          var areatext = (area/1000000).toPrecision(4) + "km²";
+          this._area = " (" + areatext + ")";
         }
       } else {
         // Setting the first layer mode.
