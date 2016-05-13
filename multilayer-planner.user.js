@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.4.2.20160511.163341
+// @version        0.4.3.20160513.115313
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2016-05-11-163341] Draw layered CF plans.
+// @description    [randomizax-2016-05-13-115313] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20160511.163341';
+// plugin_info.dateTimeVersion = '20160513.115313';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -52,7 +52,7 @@ M.sameSide = function (a, b, c, p, debug) {
 
   var d2r = L.LatLng.DEG_TO_RAD;
 
-  if (b.lng == 0 || b.lng == 180 || b.lng == -180) {
+  if (b.lng === 0 || b.lng === 180 || b.lng === -180) {
     // ab is completely on north/south line
     if (debug) console.log(["northen/southern ab: ", p.lng * c.lng]);
     // same side if they reside in the same east-west hemisphere
@@ -127,7 +127,7 @@ M.overlayerPossible = function (latlngs, p, debug) {
 
   if (debug) console.log("overlayerPossible: sameSides result: abc = " + abc + ", bca = " + bca + ", cab = " + cab);
 
-  if (abc == 0 || bca == 0 || cab == 0) {
+  if (abc === 0 || bca === 0 || cab === 0) {
     if (debug) console.log("overlayerPossible: some is on line");
     return null; // some is online
   }
@@ -378,21 +378,31 @@ M.defineOverlayer = function(L, button) {
       L.DomEvent.preventDefault(e.originalEvent);
     },
 
+    _updateLayerStats: function(){
+      if (M.tooltip) {
+        var total = 0;
+        $.each(this._layers, function(_, layer) {
+          total += L.GeometryUtil.geodesicArea(layer.getLatLngs());
+        });
+        var html = this._layers.length + " layers";
+        if (total > 0) {
+          html += "<br>" + (total/1000000).toPrecision(4) + " km²";
+        }
+        M.tooltip.innerHTML = html;
+      }
+    },
+
     _addMultiLayer: function(layer) {
       this._base = layer;
       this._layers.push(layer);
       this._updateTooltip();
-      if (M.tooltip) {
-        M.tooltip.innerHTML = this._layers.length + " layers";
-      }
+      this._updateLayerStats();
     },
 
     _appendMultiLayer: function(layer) {
       this._layers.unshift(layer);
       this._updateTooltip();
-      if (M.tooltip) {
-        M.tooltip.innerHTML = this._layers.length + " layers";
-      }
+      this._updateLayerStats();
     },
 
     _removeLastMultiLayer: function() {
@@ -406,9 +416,7 @@ M.defineOverlayer = function(L, button) {
       }
       // console.log(["_base after", this._base, this]);
       this._updateTooltip();
-      if (M.tooltip) {
-        M.tooltip.innerHTML = this._layers.length + " layers";
-      }
+      this._updateLayerStats();
     },
 
     _pickFirst: function(newPos) {
@@ -428,7 +436,7 @@ M.defineOverlayer = function(L, button) {
         });
       }
 
-      if (this._markers.length == 0) {
+      if (this._markers.length === 0) {
         // Try picking an existing trigon
         var candidates = [];
         window.plugin.drawTools.drawnItems.eachLayer( function( layer ) {
@@ -438,7 +446,7 @@ M.defineOverlayer = function(L, button) {
               layer instanceof L.Polyline) {
             if (layer.getLatLngs().length == 3) {
               if ( M.pointInPolygon( layer, newPos ) ) {
-                candidates.push([M.polygonInfo(layer).area, layer]);
+                candidates.push([L.GeometryUtil.geodesicArea(layer.getLatLngs()), layer]);
               }
             }
           }
@@ -457,7 +465,7 @@ M.defineOverlayer = function(L, button) {
                 layer instanceof L.GeodesicPolyline ||
                 layer instanceof L.Polyline) {
               if (layer.getLatLngs().length == 3) {
-                candidates.push([M.polygonInfo(layer).area, layer]);
+                candidates.push([L.GeometryUtil.geodesicArea(layer.getLatLngs()), layer]);
               }
             }
           });
@@ -521,7 +529,7 @@ M.defineOverlayer = function(L, button) {
 
     _addPoint: function(newPos) {
       // console.log(["_addPoint", newPos]);
-      if (this._base == null) {
+      if (this._base === null) {
         this._pickFirst(newPos);
       } else {
         var on_portal = false;
@@ -550,7 +558,7 @@ M.defineOverlayer = function(L, button) {
           var latlngs = this._base.getLatLngs();
           var ab = M.overlayerPossible(latlngs, newPos);
 
-          if (ab == null) {
+          if (ab === null) {
             this._showErrorTooltip();
           } else {
             ab.push(newPos);
@@ -578,11 +586,11 @@ M.defineOverlayer = function(L, button) {
 
     _getTooltipText: function() {
       if (this._base === null) {
-        if (this._markers.length == 0) {
+        if (this._markers.length === 0) {
           return { text: 'Click on an existing drawn trigon or choose three portals' };
-        } else if (this._markers.length == 1) {
+        } else if (this._markers.length === 1) {
           return { text: 'Click on the second portal' };
-        } else if (this._markers.length == 2) {
+        } else if (this._markers.length === 2) {
           return { text: 'Click on the third portal' };
         } else {
           return { text: 'Whoa there...' };
@@ -606,7 +614,7 @@ M.defineOverlayer = function(L, button) {
         var latlngs = this._base.getLatLngs();
         var ab = M.overlayerPossible(latlngs, latlng);
         if (ab) {
-          var ll = latlng
+          var ll = latlng;
           if (this.options.snapPoint) ll = this.options.snapPoint(ll);
           ab.push(ll);
           this._drawGuide(this._map.latLngToLayerPoint(ab[0]), newPos);
@@ -709,26 +717,6 @@ M.defineOverlayer = function(L, button) {
       });
     }
   }
-};
-
-// return { area: area, cog: center_of_gravity_latlng }
-M.polygonInfo = function(polygon) {
-  var poly = polygon.getLatLngs();
-  var n = poly.length;
-  if (n == 0) return [ 0, null ] ;
-  var glat = 0.0, glng = 0.0, area = 0.0;
-  var p1 = poly[n-1];
-  for (var i = 0; i < n; i++) {
-    var p2 = poly[i];
-    var s = (p2.lat * p1.lng - p1.lat * p2.lng) / 2.0;
-    area += s;
-    glat += s * (p1.lat + p2.lat) / 3.0;
-    glng += s * (p1.lng + p2.lng) / 3.0;
-    p1 = p2;
-  }
-  glat /= (area + 0.0);
-  glng /= (area + 0.0);
-  return { area: Math.abs(area), cog: new L.LatLng(glat, glng) };
 };
 
 /*
