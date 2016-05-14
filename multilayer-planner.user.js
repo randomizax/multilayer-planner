@@ -2,11 +2,11 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.4.3.20160513.115313
+// @version        0.4.4.20160514.41132
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
 // @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2016-05-13-115313] Draw layered CF plans.
+// @description    [randomizax-2016-05-14-041132] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
@@ -22,7 +22,7 @@ if(typeof window.plugin !== 'function') window.plugin = function() {};
 //PLUGIN AUTHORS: writing a plugin outside of the IITC build environment? if so, delete these lines!!
 //(leaving them in place might break the 'About IITC' page or break update checks)
 // plugin_info.buildName = 'randomizax';
-// plugin_info.dateTimeVersion = '20160513.115313';
+// plugin_info.dateTimeVersion = '20160514.41132';
 // plugin_info.pluginId = 'multilayer-planner';
 //END PLUGIN AUTHORS NOTE
 
@@ -381,12 +381,18 @@ M.defineOverlayer = function(L, button) {
     _updateLayerStats: function(){
       if (M.tooltip) {
         var total = 0;
+        var last = 0;
         $.each(this._layers, function(_, layer) {
-          total += L.GeometryUtil.geodesicArea(layer.getLatLngs());
+          var a = L.GeometryUtil.geodesicArea(layer.getLatLngs());
+          total += a + (last > 0 ? (a - last) : 0);
+          last = a;
         });
         var html = this._layers.length + " layers";
         if (total > 0) {
-          html += "<br>" + (total/1000000).toPrecision(4) + " km²";
+          html += "<br>Total: " + (total/1000000).toPrecision(4) + " km²";
+        }
+        if (last > 0) {
+          html += "<br>Largest: " + (last/1000000).toPrecision(4) + " km²";
         }
         M.tooltip.innerHTML = html;
       }

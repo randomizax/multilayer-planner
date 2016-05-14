@@ -2,7 +2,7 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.4.3.@@DATETIMEVERSION@@
+// @version        0.4.4.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
@@ -369,12 +369,18 @@ M.defineOverlayer = function(L, button) {
     _updateLayerStats: function(){
       if (M.tooltip) {
         var total = 0;
+        var last = 0;
         $.each(this._layers, function(_, layer) {
-          total += L.GeometryUtil.geodesicArea(layer.getLatLngs());
+          var a = L.GeometryUtil.geodesicArea(layer.getLatLngs());
+          total += a + (last > 0 ? (a - last) : 0);
+          last = a;
         });
         var html = this._layers.length + " layers";
         if (total > 0) {
-          html += "<br>" + (total/1000000).toPrecision(4) + " km²";
+          html += "<br>Total: " + (total/1000000).toPrecision(4) + " km²";
+        }
+        if (last > 0) {
+          html += "<br>Largest: " + (last/1000000).toPrecision(4) + " km²";
         }
         M.tooltip.innerHTML = html;
       }
