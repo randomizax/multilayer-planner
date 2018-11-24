@@ -2,15 +2,19 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        0.4.4.@@DATETIMEVERSION@@
+// @version        1.0.0.@@DATETIMEVERSION@@
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      @@UPDATEURL@@
 // @downloadURL    @@DOWNLOADURL@@
 // @description    [@@BUILDNAME@@-@@BUILDDATE@@] Draw layered CF plans.
 // @include        https://www.ingress.com/intel*
 // @include        http://www.ingress.com/intel*
+// @include        https://intel.ingress.com/intel*
+// @include        http://intel.ingress.com/intel*
 // @match          https://www.ingress.com/intel*
 // @match          http://www.ingress.com/intel*
+// @match          https://intel.ingress.com/intel*
+// @match          http://intel.ingress.com/intel*
 // @grant          none
 // ==/UserScript==
 
