@@ -2,18 +2,14 @@
 // @id             iitc-plugin-multilayer-planner@randomizax
 // @name           IITC plugin: Multilayer planner
 // @category       Info
-// @version        1.0.0.20181124.14046
+// @version        1.0.1.20190314.160025
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
-// @updateURL      https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.meta.js
-// @downloadURL    https://rawgit.com/randomizax/multilayer-planner/latest/multilayer-planner.user.js
-// @description    [randomizax-2018-11-24-014046] Draw layered CF plans.
-// @include        https://www.ingress.com/intel*
-// @include        http://www.ingress.com/intel*
-// @include        https://intel.ingress.com/intel*
-// @include        http://intel.ingress.com/intel*
-// @match          https://www.ingress.com/intel*
-// @match          http://www.ingress.com/intel*
-// @match          https://intel.ingress.com/intel*
-// @match          http://intel.ingress.com/intel*
+// @updateURL      https://randomizax.github.io/multilayer-planner/multilayer-planner.meta.js
+// @downloadURL    https://randomizax.github.io/multilayer-planner/multilayer-planner.user.js
+// @description    [randomizax-2019-03-14-160025] Draw layered CF plans.
+// @include        https://*.ingress.com/intel*
+// @include        http://*.ingress.com/intel*
+// @match          https://*.ingress.com/intel*
+// @match          http://*.ingress.com/intel*
 // @grant          none
 // ==/UserScript==
