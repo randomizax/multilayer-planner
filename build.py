@@ -98,7 +98,7 @@ script.appendChild(document.createTextNode('('+ wrapper +')('+JSON.stringify(inf
 
 
 def readfile(fn):
-    with io.open(fn, 'Ur', encoding='utf8') as f:
+    with io.open(fn, 'r', encoding='utf8') as f:
         return f.read()
 
 def loaderString(var):
@@ -138,7 +138,7 @@ def loaderMD(var):
 
 def loaderImage(var):
     fn = var.group(1)
-    return 'data:image/png;base64,{0}'.format(base64.encodestring(open(fn, 'rb').read()).decode('utf8').replace('\n', ''))
+    return 'data:image/png;base64,{0}'.format(base64.encodebytes(open(fn, 'rb').read()).decode('utf8').replace('\n', ''))
 
 def loadCode(ignore):
     return '\n\n;\n\n'.join(map(readfile, sorted(glob.glob('code/*.js'))))
